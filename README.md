@@ -259,3 +259,7 @@ A reader of the files in git gets each property of the model, but not in the for
 - The template engine is not the Python Jinja library. Use the `items` filter to loop on a dictionary: `{% for k, v in d | items %}`.
 - In development mode with no token, `COMPILE_CONTEXT.securityContext` is not defined. Use `COMPILE_CONTEXT.securityContext | default({})`.
 - Cube reads `cube.py` only at start. Restart the container after a change.
+
+## License
+
+Apache License 2.0. See `LICENSE`.
