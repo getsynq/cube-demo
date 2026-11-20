@@ -1,0 +1,103 @@
+# Plain YAML, no Jinja. A cube on a `sql` query, with a geo dimension and a sub_query dimension.
+cubes:
+  - name: customers
+    title: Customers
+    description: Customer directory. The region has a fixed coordinate, so the cube has a geo dimension.
+    sql: >
+      SELECT
+        c.ID,
+        c.EMAIL,
+        c.FULL_NAME,
+        c.REGION,
+        CASE c.REGION WHEN 'US' THEN 39.8 WHEN 'EU' THEN 50.1 WHEN 'APAC' THEN 1.35 WHEN 'LATAM' THEN -15.8 END AS REGION_LAT,
+        CASE c.REGION WHEN 'US' THEN -98.6 WHEN 'EU' THEN 9.7 WHEN 'APAC' THEN 103.8 WHEN 'LATAM' THEN -47.9 END AS REGION_LON
+      FROM DWH_TESTING.SCHEMA_B.CUSTOMERS AS c
+    meta:
+      owner: sales-analytics
+      tier: gold
+
+    joins:
+      - name: orders
+        relationship: one_to_many
+        sql: "{CUBE}.ID = {orders.customer_id}"
+
+    dimensions:
+      - name: id
+        sql: ID
+        type: number
+        primary_key: true
+        description: Unique customer identifier
+
+      - name: email
+        sql: EMAIL
+        type: string
+        public: false
+        meta:
+          pii: high
+
+      - name: email_domain
+        title: E-mail domain
+        sql: "SPLIT_PART({CUBE}.EMAIL, '@', 2)"
+        type: string
+
+      - name: full_name
+        sql: FULL_NAME
+        type: string
+        meta:
+          pii: low
+
+      - name: region
+        sql: REGION
+        type: string
+        description: Sales region of the customer
+
+      - name: region_location
+        type: geo
+        latitude:
+          sql: "{CUBE}.REGION_LAT"
+        longitude:
+          sql: "{CUBE}.REGION_LON"
+
+      - name: is_emea
+        title: Is EMEA
+        sql: "{CUBE}.REGION = 'EU'"
+        type: boolean
+
+      # sub_query: a measure of another cube, used as a dimension of this cube.
+      - name: lifetime_revenue
+        sql: "{orders.revenue}"
+        type: number
+        sub_query: true
+        format: currency
+        description: Revenue of all orders of the customer
+
+      - name: lifetime_tier
+        sql: >
+          CASE
+            WHEN {lifetime_revenue} >= 30000 THEN 'high'
+            WHEN {lifetime_revenue} >= 10000 THEN 'medium'
+            ELSE 'low'
+          END
+        type: string
+
+    measures:
+      - name: count
+        type: count
+        drill_members: [id, full_name, region]
+
+      - name: region_count
+        sql: REGION
+        type: count_distinct
+        title: Regions with customers
+
+    segments:
+      - name: emea
+        sql: "{CUBE}.REGION = 'EU'"
+        description: Customers in the EU region
+
+    hierarchies:
+      - name: geography
+        title: Geography
+        levels:
+          - region
+          - full_name

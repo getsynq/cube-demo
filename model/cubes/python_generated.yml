@@ -1,0 +1,36 @@
+{#- YAML with Jinja. The cube definitions come from the Python function `python_cubes`
+    in model/globals.py. Cube has no model file in Python, this is the Python route. -#}
+cubes:
+{%- for cube in python_cubes() %}
+  - name: {{ cube.name | safe }}
+    sql_table: {{ cube.table | safe }}
+    data_source: postgres
+    description: {{ cube.description }}
+    meta:
+      generated_by: python_cubes
+{% if cube.joins %}
+    joins:
+{%- for join in cube.joins %}
+      - name: {{ join.name | safe }}
+        relationship: {{ join.relationship | safe }}
+        sql: "{{ join.sql | safe }}"
+{%- endfor %}
+{% endif %}
+    dimensions:
+{%- for column in cube.columns %}
+      - name: {{ column.name | safe }}
+        sql: "{{ column.sql | safe }}"
+        type: {{ column.type | safe }}
+{%- if column.name == cube.primary_key %}
+        primary_key: true
+{%- endif %}
+{% endfor %}
+    measures:
+      - name: count
+        type: count
+{% for column in cube.sums %}
+      - name: total_{{ column | safe }}
+        sql: {{ column | safe }}
+        type: sum
+{% endfor %}
+{%- endfor %}

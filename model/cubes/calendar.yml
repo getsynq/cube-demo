@@ -1,0 +1,62 @@
+# Plain YAML, no Jinja. A calendar cube: fiscal year that starts on 1 February,
+# granularities with SQL and time shifts.
+cubes:
+  - name: calendar
+    calendar: true
+    title: Fiscal calendar
+    description: One row for each day. The fiscal year starts on 1 February.
+    sql: >
+      SELECT
+        d.CALENDAR_DATE,
+        DATE_TRUNC('month', d.CALENDAR_DATE) AS MONTH_START,
+        DATEADD('month', 1, DATE_TRUNC('quarter', DATEADD('month', -1, d.CALENDAR_DATE))) AS FISCAL_QUARTER_START,
+        DATEADD('month', 1, DATE_TRUNC('year', DATEADD('month', -1, d.CALENDAR_DATE))) AS FISCAL_YEAR_START,
+        YEAR(DATEADD('month', -1, d.CALENDAR_DATE)) AS FISCAL_YEAR,
+        DATEADD('year', -1, d.CALENDAR_DATE) AS PRIOR_FISCAL_YEAR_DATE,
+        DATEADD('month', -1, d.CALENDAR_DATE) AS PRIOR_MONTH_DATE,
+        DAYNAME(d.CALENDAR_DATE) AS DAY_NAME,
+        DAYOFWEEKISO(d.CALENDAR_DATE) >= 6 AS IS_WEEKEND
+      FROM (
+        SELECT DATEADD('day', ROW_NUMBER() OVER (ORDER BY SEQ4()) - 1, '2024-01-01'::TIMESTAMP_NTZ) AS CALENDAR_DATE
+        FROM TABLE(GENERATOR(ROWCOUNT => 1461))
+      ) AS d
+
+    dimensions:
+      - name: date
+        sql: CALENDAR_DATE
+        type: time
+        primary_key: true
+        public: true
+        time_shift:
+          - name: prior_fiscal_year
+            sql: "{CUBE}.PRIOR_FISCAL_YEAR_DATE"
+          - type: prior
+            interval: 1 month
+            sql: "{CUBE}.PRIOR_MONTH_DATE"
+        granularities:
+          - name: month
+            sql: "{CUBE}.MONTH_START"
+          - name: quarter
+            sql: "{CUBE}.FISCAL_QUARTER_START"
+          - name: year
+            sql: "{CUBE}.FISCAL_YEAR_START"
+
+      - name: fiscal_year
+        sql: FISCAL_YEAR
+        type: number
+        format: id
+
+      - name: day_name
+        sql: DAY_NAME
+        type: string
+
+      - name: is_weekend
+        sql: IS_WEEKEND
+        type: boolean
+
+    hierarchies:
+      - name: fiscal
+        title: Fiscal periods
+        levels:
+          - fiscal_year
+          - day_name

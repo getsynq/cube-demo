@@ -1,0 +1,86 @@
+# Plain YAML, no Jinja. A composite primary key and two many_to_one joins.
+cubes:
+  - name: order_items
+    sql_table: DWH_TESTING.SCHEMA_A.ORDER_ITEMS
+    title: Order items
+    description: Line items within customer orders
+
+    joins:
+      - name: products
+        relationship: many_to_one
+        sql: "{CUBE}.PRODUCT_ID = {products.id}"
+
+      - name: orders
+        relationship: many_to_one
+        sql: "{CUBE}.ORDER_ID = {orders.id}"
+
+    dimensions:
+      - name: id
+        sql: "{CUBE}.ORDER_ID || '-' || {CUBE}.ITEM_ID"
+        type: string
+        primary_key: true
+
+      - name: order_id
+        sql: ORDER_ID
+        type: number
+        public: false
+
+      - name: product_id
+        sql: PRODUCT_ID
+        type: number
+        public: false
+
+      - name: quantity
+        sql: QUANTITY
+        type: number
+
+      - name: unit_price
+        sql: UNIT_PRICE
+        type: number
+        format: currency
+
+      - name: has_discount
+        sql: "{CUBE}.DISCOUNT > 0"
+        type: boolean
+
+    measures:
+      - name: count
+        type: count
+
+      - name: quantity_sold
+        sql: QUANTITY
+        type: sum
+
+      - name: gross_amount
+        sql: "{CUBE}.QUANTITY * {CUBE}.UNIT_PRICE"
+        type: sum
+        format: currency
+
+      - name: discount_amount
+        sql: DISCOUNT
+        type: sum
+        format: currency
+
+      - name: net_amount
+        sql: "{gross_amount} - {discount_amount}"
+        type: number
+        format: currency
+        description: Gross amount minus discounts
+
+      - name: discounted_items
+        type: count
+        filters:
+          - sql: "{CUBE}.DISCOUNT > 0"
+
+      - name: products_sold
+        sql: PRODUCT_ID
+        type: count_distinct
+
+      - name: products_sold_approx
+        sql: PRODUCT_ID
+        type: count_distinct_approx
+
+      - name: avg_unit_price
+        sql: UNIT_PRICE
+        type: avg
+        format: currency

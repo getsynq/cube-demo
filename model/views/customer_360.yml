@@ -1,0 +1,41 @@
+{#- YAML with Jinja. The includes come from a `for` loop on a Python global.
+    A hidden view (public: false) is in the same file. -#}
+{%- set statuses = order_statuses() -%}
+views:
+  - name: customer_360
+    title: Customer 360
+    description: Customers with their order history
+    meta:
+      owner: sales-analytics
+
+    cubes:
+      # The geo dimension `region_location` is not here: Cube v1.8.30 compiles a geo
+      # dimension in a view, but each query that selects it fails.
+      - join_path: customers
+        includes:
+          - id
+          - full_name
+          - region
+          - lifetime_revenue
+          - lifetime_tier
+          - count
+          - emea
+          - geography
+
+      - join_path: customers.orders
+        prefix: true
+        includes:
+          - count
+          - revenue
+          - first_order_at
+{%- for status in statuses %}
+          - {{ status | safe }}_count
+{%- endfor %}
+
+  - name: events_internal
+    public: false
+    description: A hidden view for the product team
+
+    cubes:
+      - join_path: events
+        includes: "*"
