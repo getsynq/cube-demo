@@ -1,0 +1,1 @@
+Error: view 'order_items_detail': selected hierarchy 'products.catalog' has no Ossie form; exclude it from the view to project it

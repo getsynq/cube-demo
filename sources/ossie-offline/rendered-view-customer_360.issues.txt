@@ -1,0 +1,1 @@
+Error: view 'customer_360': selected dimension 'customers.lifetime_revenue' uses sub_query, which has no single Ossie field form

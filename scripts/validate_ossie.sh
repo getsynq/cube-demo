@@ -8,7 +8,7 @@ status=0
 for document in sources/ossie-*/*.ossie.yaml; do
   [ -e "$document" ] || { echo "no Ossie document in sources/"; exit 1; }
   report="${document%.ossie.yaml}.validation.txt"
-  if "$synqctl" ossie validate "$document" > "$report" 2>&1; then
+  if "$synqctl" ossie validate "$document" --columns document,valid,issues > "$report" 2>&1; then
     echo "valid   $document"
   else
     echo "invalid $document (see $report)"

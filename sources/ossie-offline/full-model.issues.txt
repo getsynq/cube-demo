@@ -1,0 +1,1 @@
+Error: cube 'products_snapshot_extended' uses `extends`, which this converter does not resolve yet; flatten the cube or exclude the file

@@ -1,0 +1,1388 @@
+version: 0.3.0.dev0
+name: cube_model
+relationships:
+- name: orders_to_customers
+  from: orders
+  to: customers
+  from_columns:
+  - CUSTOMER_ID
+  to_columns:
+  - ID
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "declared_on": "customers", "relationship": "one_to_many", "sql":
+      "{CUBE}.ID = {orders.customer_id}"}'
+- name: order_items_to_products
+  from: order_items
+  to: products
+  from_columns:
+  - PRODUCT_ID
+  to_columns:
+  - ID
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "sql": "{CUBE}.PRODUCT_ID = {products.id}"}'
+- name: order_items_to_orders
+  from: order_items
+  to: orders
+  from_columns:
+  - ORDER_ID
+  to_columns:
+  - ID
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "sql": "{CUBE}.ORDER_ID = {orders.id}"}'
+- name: orders_to_customers_2
+  from: orders
+  to: customers
+  from_columns:
+  - CUSTOMER_ID
+  to_columns:
+  - ID
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "sql": "{CUBE}.CUSTOMER_ID = {customers.id}"}'
+- name: products_to_product_snapshots
+  from: products
+  to: product_snapshots
+  from_columns:
+  - ID
+  to_columns:
+  - ID
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "declared_on": "products", "relationship": "one_to_one", "sql":
+      "{CUBE}.ID = {product_snapshots.id}"}'
+datasets:
+- name: calendar
+  source: |-
+    SELECT
+      d.CALENDAR_DATE,
+      DATE_TRUNC('month', d.CALENDAR_DATE) AS MONTH_START,
+      DATEADD('month', 1, DATE_TRUNC('quarter', DATEADD('month', -1, d.CALENDAR_DATE))) AS FISCAL_QUARTER_START,
+      DATEADD('month', 1, DATE_TRUNC('year', DATEADD('month', -1, d.CALENDAR_DATE))) AS FISCAL_YEAR_START,
+      YEAR(DATEADD('month', -1, d.CALENDAR_DATE)) AS FISCAL_YEAR,
+      DATEADD('year', -1, d.CALENDAR_DATE) AS PRIOR_FISCAL_YEAR_DATE,
+      DATEADD('month', -1, d.CALENDAR_DATE) AS PRIOR_MONTH_DATE,
+      DAYNAME(d.CALENDAR_DATE) AS DAY_NAME,
+      DAYOFWEEKISO(d.CALENDAR_DATE) >= 6 AS IS_WEEKEND
+    FROM (
+      SELECT DATEADD('day', ROW_NUMBER() OVER (ORDER BY SEQ4()) - 1, '2024-01-01'::TIMESTAMP_NTZ) AS CALENDAR_DATE
+      FROM TABLE(GENERATOR(ROWCOUNT => 1461))
+    ) AS d
+  description: One row for each day. The fiscal year starts on 1 February.
+  fields:
+  - name: date
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: CALENDAR_DATE
+    datatype: DateTime
+    dimension:
+      is_time: true
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "public": true, "time_shift": [{"name": "prior_fiscal_year",
+        "sql": "{CUBE}.PRIOR_FISCAL_YEAR_DATE"}, {"type": "prior", "interval": "1
+        month", "sql": "{CUBE}.PRIOR_MONTH_DATE"}], "granularities": [{"name": "month",
+        "sql": "{CUBE}.MONTH_START"}, {"name": "quarter", "sql": "{CUBE}.FISCAL_QUARTER_START"},
+        {"name": "year", "sql": "{CUBE}.FISCAL_YEAR_START"}]}'
+  - name: fiscal_year
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: FISCAL_YEAR
+    datatype: Decimal
+    dimension: {}
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "format": "id"}'
+  - name: day_name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: DAY_NAME
+    datatype: String
+    dimension: {}
+  - name: is_weekend
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: IS_WEEKEND
+    datatype: Boolean
+    dimension: {}
+  primary_key:
+  - date
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "computed_primary_key": ["date"], "cube_extras": {"calendar":
+      true, "title": "Fiscal calendar", "hierarchies": [{"name": "fiscal", "title":
+      "Fiscal periods", "levels": ["fiscal_year", "day_name"]}]}}'
+- name: customers
+  source: |-
+    SELECT
+      c.ID,
+      c.EMAIL,
+      c.FULL_NAME,
+      c.REGION,
+      CASE c.REGION WHEN 'US' THEN 39.8 WHEN 'EU' THEN 50.1 WHEN 'APAC' THEN 1.35 WHEN 'LATAM' THEN -15.8 END AS REGION_LAT,
+      CASE c.REGION WHEN 'US' THEN -98.6 WHEN 'EU' THEN 9.7 WHEN 'APAC' THEN 103.8 WHEN 'LATAM' THEN -47.9 END AS REGION_LON
+    FROM DWH_TESTING.SCHEMA_B.CUSTOMERS AS c
+  description: Customer directory. The region has a fixed coordinate, so the cube
+    has a geo dimension.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ID
+    datatype: Decimal
+    dimension: {}
+    description: Unique customer identifier
+  - name: email
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: EMAIL
+    datatype: String
+    dimension: {}
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "public": false, "meta": {"pii": "high"}}'
+  - name: email_domain
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: SPLIT_PART(EMAIL, '@', 2)
+    datatype: String
+    dimension: {}
+    label: E-mail domain
+  - name: full_name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: FULL_NAME
+    datatype: String
+    dimension: {}
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "meta": {"pii": "low"}}'
+  - name: region
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: REGION
+    datatype: String
+    dimension: {}
+    description: Sales region of the customer
+  - name: region_location_latitude
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: REGION_LAT
+    datatype: Float
+    dimension: {}
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "geo": {"of": "region_location", "part": "latitude"}}'
+  - name: region_location_longitude
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: REGION_LON
+    datatype: Float
+    dimension: {}
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "geo": {"of": "region_location", "part": "longitude"}}'
+  - name: is_emea
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: REGION = 'EU'
+    datatype: Boolean
+    dimension: {}
+    label: Is EMEA
+  - name: lifetime_tier
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: |
+          CASE
+            WHEN lifetime_revenue >= 30000 THEN 'high'
+            WHEN lifetime_revenue >= 10000 THEN 'medium'
+            ELSE 'low'
+          END
+    datatype: String
+    dimension: {}
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "sql": "CASE\n  WHEN {lifetime_revenue} >= 30000 THEN ''high''\n  WHEN
+        {lifetime_revenue} >= 10000 THEN ''medium''\n  ELSE ''low''\nEND\n"}'
+  - name: ID
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ID
+    datatype: Decimal
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "key_only": true}'
+  primary_key:
+  - id
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "extra_dimensions": [{"index": 7, "dimension": {"name": "lifetime_revenue",
+      "sql": "{orders.revenue}", "type": "number", "sub_query": true, "format": "currency",
+      "description": "Revenue of all orders of the customer"}}], "computed_primary_key":
+      ["id"], "cube_extras": {"title": "Customers", "segments": [{"name": "emea",
+      "sql": "{CUBE}.REGION = ''EU''", "description": "Customers in the EU region"}],
+      "hierarchies": [{"name": "geography", "title": "Geography", "levels": ["region",
+      "full_name"]}], "meta": {"owner": "sales-analytics", "tier": "gold"}}}'
+- name: events
+  source: |-
+    SELECT
+      e.EVENT_ID,
+      e.EVENT_NAME,
+      e.EVENT_TS,
+      e.PAYLOAD:plan::STRING AS PAYLOAD_PLAN,
+      e.PAYLOAD:device::STRING AS PAYLOAD_DEVICE,
+      e.PAYLOAD:amount::NUMBER(10,2) AS AMOUNT
+    FROM DWH_TESTING.PIPELINES.EVENTS_RAW AS e WHERE {FILTER_GROUP(
+      FILTER_PARAMS.events.event_at.filter('e.EVENT_TS'),
+      FILTER_PARAMS.events.name.filter('e.EVENT_NAME')
+    )}
+  description: Product events with fields from the JSON payload
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: EVENT_ID
+    datatype: Decimal
+    dimension: {}
+  - name: name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: EVENT_NAME
+    datatype: String
+    dimension: {}
+  - name: event_at
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: EVENT_TS
+    datatype: DateTime
+    dimension:
+      is_time: true
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "granularities": [{"name": "half_hour", "interval": "30 minutes"},
+        {"name": "week_starting_on_sunday", "title": "Week (Sunday start)", "interval":
+        "1 week", "offset": "-1 day"}, {"name": "fiscal_year", "title": "Fiscal year",
+        "interval": "1 year", "origin": "2026-02-01"}, {"name": "fiscal_quarter",
+        "title": "Fiscal quarter", "interval": "3 months", "origin": "2026-02-01"}]}'
+  - name: plan
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: PAYLOAD_PLAN
+    datatype: String
+    dimension: {}
+    label: Plan (payload)
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "meta": {"source": "payload"}}'
+  - name: device
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: PAYLOAD_DEVICE
+    datatype: String
+    dimension: {}
+    label: Device (payload)
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "meta": {"source": "payload"}}'
+  primary_key:
+  - id
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "computed_primary_key": ["id"], "cube_extras": {"title": "Events",
+      "segments": [{"name": "purchases", "sql": "{CUBE}.EVENT_NAME = ''purchase''"}],
+      "access_policy": [{"group": "default", "member_level": {"includes": "*"}, "row_level":
+      {"allow_all": true}}, {"group": "marketing", "member_level": {"includes": ["name",
+      "event_at", "plan", "count", "signup_count"]}, "row_level": {"filters": [{"member":
+      "name", "operator": "equals", "values": ["signup", "login"]}]}}], "meta": {"domain":
+      "sales", "owner": "product-analytics", "tier": "silver"}}}'
+- name: order_items
+  source: DWH_TESTING.SCHEMA_A.ORDER_ITEMS
+  description: Line items within customer orders
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ORDER_ID || '-' || ITEM_ID
+    datatype: String
+    dimension: {}
+  - name: order_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ORDER_ID
+    datatype: Decimal
+    dimension: {}
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "public": false}'
+  - name: product_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: PRODUCT_ID
+    datatype: Decimal
+    dimension: {}
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "public": false}'
+  - name: quantity
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: QUANTITY
+    datatype: Decimal
+    dimension: {}
+  - name: unit_price
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: UNIT_PRICE
+    datatype: Decimal
+    dimension: {}
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "format": "currency"}'
+  - name: has_discount
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: DISCOUNT > 0
+    datatype: Boolean
+    dimension: {}
+  - name: PRODUCT_ID
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: PRODUCT_ID
+    datatype: Decimal
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "key_only": true}'
+  - name: ORDER_ID
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ORDER_ID
+    datatype: Decimal
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "key_only": true}'
+  primary_key:
+  - id
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "computed_primary_key": ["id"], "cube_extras": {"title": "Order
+      items"}}'
+- name: orders
+  source: DWH_TESTING.RECON_DEMO.ORDERS
+  description: One row for each customer order
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ID
+    datatype: Decimal
+    dimension: {}
+    description: Unique order identifier
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "public": true, "format": "id"}'
+  - name: customer_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: CUSTOMER_ID
+    datatype: Decimal
+    dimension: {}
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "public": false}'
+  - name: customer_region
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: customers.region
+    datatype: String
+    dimension: {}
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "sql": "{customers.region}"}'
+  - name: status
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: STATUS
+    datatype: String
+    dimension: {}
+    description: 'Status of the order: new, paid, shipped, delivered, returned'
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "meta": {"allowed_values": ["new", "paid", "shipped", "delivered",
+        "returned"]}}'
+  - name: status_group
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: CASE WHEN STATUS IN ('new', 'paid') THEN 'open' WHEN STATUS IN
+          ('shipped', 'delivered') THEN 'completed' ELSE 'returned' END
+    datatype: String
+    dimension: {}
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "case": {"when": [{"sql": "{CUBE}.STATUS IN (''new'', ''paid'')",
+        "label": "open"}, {"sql": "{CUBE}.STATUS IN (''shipped'', ''delivered'')",
+        "label": "completed"}], "else": {"label": "returned"}}}'
+  - name: amount
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AMOUNT
+    datatype: Decimal
+    dimension: {}
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "format": "currency", "meta": {"unit": "USD"}}'
+  - name: is_high_value
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AMOUNT >= 1000
+    datatype: Boolean
+    dimension: {}
+    label: High value order
+  - name: amount_bucket
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: FLOOR(AMOUNT / 250) * 250
+    datatype: Decimal
+    dimension: {}
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "public": false}'
+  - name: ordered_at
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ORDERED_AT
+    datatype: DateTime
+    dimension:
+      is_time: true
+    label: Ordered at
+    description: Time when the customer made the order
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "granularities": [{"name": "half_hour", "interval": "30 minutes"},
+        {"name": "week_starting_on_sunday", "title": "Week (Sunday start)", "interval":
+        "1 week", "offset": "-1 day"}, {"name": "fiscal_year", "title": "Fiscal year",
+        "interval": "1 year", "origin": "2026-02-01"}, {"name": "fiscal_quarter",
+        "title": "Fiscal quarter", "interval": "3 months", "origin": "2026-02-01"}]}'
+  - name: ordered_date
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: DATE_TRUNC('day', ORDERED_AT)::TIMESTAMP_NTZ
+    datatype: DateTime
+    dimension:
+      is_time: true
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "public": false}'
+  - name: CUSTOMER_ID
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: CUSTOMER_ID
+    datatype: Decimal
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "key_only": true}'
+  - name: ID
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ID
+    datatype: Decimal
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "key_only": true}'
+  primary_key:
+  - id
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "extra_dimensions": [{"index": 10, "dimension": {"name": "amount_unit",
+      "type": "switch", "values": ["units", "thousands"]}}], "computed_primary_key":
+      ["id"], "extra_joins": [{"index": 1, "join": {"name": "calendar", "relationship":
+      "many_to_one", "sql": "{CUBE.ordered_date} = {calendar.date}"}}], "extra_measures":
+      [{"index": 7, "measure": {"name": "median_customer_revenue", "multi_stage":
+      true, "sql": "MEDIAN({revenue})", "type": "number_agg", "format": "currency",
+      "add_group_by": ["customer_id"]}}, {"index": 24, "measure": {"name": "revenue_trailing_7_days",
+      "sql": "AMOUNT", "type": "sum", "format": "currency", "rolling_window": {"trailing":
+      "7 day", "offset": "end"}}}, {"index": 25, "measure": {"name": "cumulative_revenue",
+      "sql": "AMOUNT", "type": "sum", "format": "currency", "rolling_window": {"trailing":
+      "unbounded"}}}, {"index": 26, "measure": {"name": "revenue_year_to_date", "sql":
+      "AMOUNT", "type": "sum", "format": "currency", "rolling_window": {"type": "to_date",
+      "granularity": "year"}}}, {"index": 27, "measure": {"name": "revenue_prior_month",
+      "multi_stage": true, "sql": "{revenue}", "type": "number", "format": "currency",
+      "time_shift": [{"time_dimension": "ordered_at", "interval": "1 month", "type":
+      "prior"}]}}, {"index": 28, "measure": {"name": "revenue_month_over_month", "multi_stage":
+      true, "sql": "({revenue} - {revenue_prior_month}) / NULLIF({revenue_prior_month},
+      0)", "type": "number", "format": "percent", "title": "Revenue change, month
+      over month"}}, {"index": 29, "measure": {"name": "revenue_prior_fiscal_year",
+      "multi_stage": true, "sql": "{revenue}", "type": "number", "format": "currency",
+      "time_shift": [{"name": "prior_fiscal_year"}]}}, {"index": 30, "measure": {"name":
+      "revenue_all_statuses", "multi_stage": true, "sql": "{revenue}", "type": "sum",
+      "format": "currency", "reduce_by": ["status"]}}, {"index": 31, "measure": {"name":
+      "revenue_share_of_statuses", "multi_stage": true, "sql": "{revenue} / NULLIF({revenue_all_statuses},
+      0)", "type": "number", "format": "percent"}}, {"index": 32, "measure": {"name":
+      "revenue_of_status_group", "multi_stage": true, "sql": "{revenue}", "type":
+      "sum", "format": "currency", "group_by": ["status_group"]}}, {"index": 33, "measure":
+      {"name": "status_revenue_rank", "multi_stage": true, "type": "rank", "order_by":
+      [{"sql": "{revenue}", "dir": "desc"}], "reduce_by": ["status"]}}, {"index":
+      35, "measure": {"name": "revenue_in_unit", "multi_stage": true, "type": "number",
+      "case": {"switch": "{CUBE.amount_unit}", "when": [{"value": "thousands", "sql":
+      "{CUBE.revenue_thousands}"}], "else": {"sql": "{CUBE.revenue}"}}}}], "cube_extras":
+      {"title": "Orders", "segments": [{"name": "completed", "sql": "{CUBE}.STATUS
+      IN (''shipped'', ''delivered'')", "description": "Orders that the customer received
+      or will receive"}, {"name": "high_value", "sql": "{CUBE}.AMOUNT >= 1000"}],
+      "hierarchies": [{"name": "order_status", "title": "Order status", "levels":
+      ["status_group", "status"]}], "pre_aggregations": [{"name": "revenue_by_status_daily",
+      "type": "rollup", "measures": ["CUBE.count", "CUBE.revenue", "CUBE.returned_count"],
+      "dimensions": ["CUBE.status"], "time_dimension": "CUBE.ordered_at", "granularity":
+      "day", "partition_granularity": "month", "build_range_start": {"sql": "SELECT
+      ''2026-01-01''::TIMESTAMP"}, "build_range_end": {"sql": "SELECT ''2026-07-01''::TIMESTAMP"},
+      "refresh_key": {"every": "1 day", "incremental": true, "update_window": "7 day"},
+      "indexes": [{"name": "status_index", "columns": ["CUBE.status"]}, {"name": "status_aggregate_index",
+      "columns": ["CUBE.status"], "type": "aggregate"}]}, {"name": "customers_monthly",
+      "measures": ["CUBE.count", "CUBE.revenue"], "dimensions": ["customers.region"],
+      "time_dimension": "CUBE.ordered_at", "granularity": "month", "refresh_key":
+      {"sql": "SELECT MAX(ORDERED_AT) FROM DWH_TESTING.RECON_DEMO.ORDERS"}}], "access_policy":
+      [{"group": "default", "member_level": {"includes": "*"}, "row_level": {"allow_all":
+      true}}, {"group": "analyst", "member_level": {"excludes": ["customer_id", "debug_row_count"]},
+      "row_level": {"filters": [{"member": "customer_region", "operator": "equals",
+      "values": ["{ securityContext.region }"]}]}}, {"group": "finance", "conditions":
+      [{"if": "{ securityContext.is_full_time_employee }"}], "member_level": {"includes":
+      ["status", "ordered_at", "count", "revenue", "average_order_value"]}, "row_level":
+      {"filters": [{"member": "status", "operator": "notEquals", "values": ["new"]}]}}],
+      "meta": {"domain": "sales", "owner": "sales-analytics", "tier": "gold"}}}'
+- name: pg_orders
+  source: recon_demo.orders
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    datatype: Decimal
+    dimension: {}
+  - name: status
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: status
+    datatype: String
+    dimension: {}
+  - name: ordered_at
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ordered_at
+    datatype: DateTime
+    dimension:
+      is_time: true
+  - name: order_hour
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: EXTRACT(HOUR FROM ordered_at AT TIME ZONE 'UTC')
+    datatype: Decimal
+    dimension: {}
+  primary_key:
+  - id
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "cube_extras": {"data_source": "postgres", "title": "Orders (PostgreSQL)",
+      "pre_aggregations": [{"name": "status_monthly", "measures": ["CUBE.count", "CUBE.revenue"],
+      "dimensions": ["CUBE.status"], "time_dimension": "CUBE.ordered_at", "granularity":
+      "month"}]}}'
+- name: ch_order_item_facts
+  source: synq_test.order_item_facts
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: concat(toString(order_id), '-', toString(item_id))
+    datatype: String
+    dimension: {}
+  - name: product_name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: product_name
+    datatype: String
+    dimension: {}
+  - name: category
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: category
+    datatype: String
+    dimension: {}
+  - name: loaded_at
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: loaded_at
+    datatype: DateTime
+    dimension:
+      is_time: true
+  primary_key:
+  - id
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "computed_primary_key": ["id"], "cube_extras": {"data_source":
+      "clickhouse", "title": "Order item facts (ClickHouse)"}}'
+- name: bq_events
+  source: |-
+    SELECT
+      event_id,
+      event_ts,
+      event_name,
+      JSON_VALUE(payload, '$.plan') AS plan,
+      SAFE_CAST(JSON_VALUE(payload, '$.amount') AS NUMERIC) AS amount
+    FROM synq_dwhtesting.events_hourly
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: event_id
+    datatype: String
+    dimension: {}
+  - name: name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: event_name
+    datatype: String
+    dimension: {}
+  - name: plan
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: plan
+    datatype: String
+    dimension: {}
+  - name: event_at
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: event_ts
+    datatype: DateTime
+    dimension:
+      is_time: true
+  primary_key:
+  - id
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "computed_primary_key": ["id"], "cube_extras": {"data_source":
+      "bigquery", "title": "Events (BigQuery)"}}'
+- name: products
+  source: DWH_TESTING.SCHEMA_A.PRODUCTS
+  description: Product catalog with inventory tracking
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ID
+    datatype: Decimal
+    dimension: {}
+  - name: name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: NAME
+    datatype: String
+    dimension: {}
+    description: Product display name
+  - name: category
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: CATEGORY
+    datatype: String
+    dimension: {}
+  - name: sku
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: TRIM(SKU)
+    datatype: String
+    dimension: {}
+    label: SKU
+  - name: is_active
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: IS_ACTIVE
+    datatype: Boolean
+    dimension: {}
+  - name: price
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: PRICE
+    datatype: Decimal
+    dimension: {}
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "format": "currency"}'
+  - name: price_band
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: |
+          CASE
+            WHEN PRICE < 10 THEN 'budget'
+            WHEN PRICE < 30 THEN 'standard'
+            ELSE 'premium'
+          END
+    datatype: String
+    dimension: {}
+  - name: created_at
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: CREATED_AT
+    datatype: DateTime
+    dimension:
+      is_time: true
+  - name: product_page
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: '''https://example.com/products/'' || ID'
+    datatype: String
+    dimension: {}
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "format": "link"}'
+  - name: ID
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ID
+    datatype: Decimal
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "key_only": true}'
+  primary_key:
+  - id
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "computed_primary_key": ["id"], "cube_extras": {"title": "Products",
+      "segments": [{"name": "active", "sql": "{CUBE}.IS_ACTIVE"}, {"name": "electronics",
+      "sql": "{CUBE}.CATEGORY = ''Electronics''"}], "hierarchies": [{"name": "catalog",
+      "title": "Catalog", "levels": ["category", "name"]}], "meta": {"owner": "catalog-team"}}}'
+- name: product_snapshots
+  source: DWH_TESTING.SCHEMA_A.PRODUCTS_CLONE
+  description: Zero-copy clone of the product catalog, taken at the last reseed
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ID
+    datatype: Decimal
+    dimension: {}
+  - name: snapshot_price
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: PRICE
+    datatype: Decimal
+    dimension: {}
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "format": "currency"}'
+  - name: ID
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ID
+    datatype: Decimal
+    custom_extensions:
+    - vendor_name: CUBE
+      data: '{"_v": 1, "key_only": true}'
+  primary_key:
+  - id
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "computed_primary_key": ["id"], "cube_extras": {"public": false}}'
+metrics:
+- name: customers__count
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: COUNT(DISTINCT customers.id)
+  datatype: Integer
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "drill_members": ["id", "full_name", "region"], "name": "count"}'
+- name: region_count
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: COUNT(DISTINCT customers.REGION)
+  datatype: Integer
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "title": "Regions with customers"}'
+- name: events__count
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: COUNT(DISTINCT events.id)
+  datatype: Integer
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "name": "count"}'
+- name: purchase_amount
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: SUM(events.AMOUNT)
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "format": "currency"}'
+- name: signup_count
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: COUNT(DISTINCT CASE WHEN (events.EVENT_NAME = 'signup') THEN events.id
+        END)
+  datatype: Integer
+- name: login_count
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: COUNT(DISTINCT CASE WHEN (events.EVENT_NAME = 'login') THEN events.id
+        END)
+  datatype: Integer
+- name: purchase_count
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: COUNT(DISTINCT CASE WHEN (events.EVENT_NAME = 'purchase') THEN events.id
+        END)
+  datatype: Integer
+- name: signup_to_purchase_rate
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: 1.0 * purchase_count / NULLIF(signup_count, 0)
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "format": "percent"}'
+- name: order_items__count
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: COUNT(DISTINCT order_items.id)
+  datatype: Integer
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "name": "count"}'
+- name: quantity_sold
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: SUM(order_items.QUANTITY)
+- name: gross_amount
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: SUM(order_items.QUANTITY * order_items.UNIT_PRICE)
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "format": "currency"}'
+- name: discount_amount
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: SUM(order_items.DISCOUNT)
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "format": "currency"}'
+- name: net_amount
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: gross_amount - discount_amount
+  description: Gross amount minus discounts
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "format": "currency"}'
+- name: discounted_items
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: COUNT(DISTINCT CASE WHEN (order_items.DISCOUNT > 0) THEN order_items.id
+        END)
+  datatype: Integer
+- name: products_sold
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: COUNT(DISTINCT order_items.PRODUCT_ID)
+  datatype: Integer
+- name: products_sold_approx
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: APPROX_COUNT_DISTINCT(order_items.PRODUCT_ID)
+  datatype: Integer
+- name: avg_unit_price
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: AVG(order_items.UNIT_PRICE)
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "format": "currency"}'
+- name: orders__count
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: COUNT(DISTINCT orders.id)
+  datatype: Integer
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "drill_members": ["id", "status", "amount", "ordered_at"], "name":
+      "count"}'
+- name: customer_count
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: COUNT(DISTINCT orders.CUSTOMER_ID)
+  datatype: Integer
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "title": "Customers with orders"}'
+- name: orders__revenue
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: SUM(orders.AMOUNT)
+  description: Sum of the order amounts
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "format": "currency", "name": "revenue"}'
+- name: avg_amount
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: AVG(orders.AMOUNT)
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "format": "currency"}'
+- name: min_amount
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: MIN(orders.AMOUNT)
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "format": "currency"}'
+- name: max_amount
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: MAX(orders.AMOUNT)
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "format": "currency"}'
+- name: average_order_value
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: orders__revenue / NULLIF(orders__count, 0)
+  description: Revenue divided by the number of orders
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "format": "currency"}'
+- name: first_order_at
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: MIN(orders.ORDERED_AT)
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "type": "time"}'
+- name: has_returns
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: BOOLOR_AGG(orders.STATUS = 'returned')
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "type": "boolean"}'
+- name: statuses_seen
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: LISTAGG(DISTINCT orders.STATUS, ', ')
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "type": "string"}'
+- name: new_count
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: COUNT(DISTINCT CASE WHEN (orders.STATUS = 'new') THEN orders.id
+        END)
+  datatype: Integer
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "title": "New orders", "meta": {"generated_by": "status_measures",
+      "status": "new"}}'
+- name: new_revenue
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: SUM(CASE WHEN (orders.STATUS = 'new') THEN orders.AMOUNT END)
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "format": "currency", "title": "New revenue", "meta": {"generated_by":
+      "status_measures", "status": "new"}}'
+- name: paid_count
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: COUNT(DISTINCT CASE WHEN (orders.STATUS = 'paid') THEN orders.id
+        END)
+  datatype: Integer
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "title": "Paid orders", "meta": {"generated_by": "status_measures",
+      "status": "paid"}}'
+- name: paid_revenue
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: SUM(CASE WHEN (orders.STATUS = 'paid') THEN orders.AMOUNT END)
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "format": "currency", "title": "Paid revenue", "meta": {"generated_by":
+      "status_measures", "status": "paid"}}'
+- name: shipped_count
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: COUNT(DISTINCT CASE WHEN (orders.STATUS = 'shipped') THEN orders.id
+        END)
+  datatype: Integer
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "title": "Shipped orders", "meta": {"generated_by": "status_measures",
+      "status": "shipped"}}'
+- name: shipped_revenue
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: SUM(CASE WHEN (orders.STATUS = 'shipped') THEN orders.AMOUNT END)
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "format": "currency", "title": "Shipped revenue", "meta": {"generated_by":
+      "status_measures", "status": "shipped"}}'
+- name: delivered_count
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: COUNT(DISTINCT CASE WHEN (orders.STATUS = 'delivered') THEN orders.id
+        END)
+  datatype: Integer
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "title": "Delivered orders", "meta": {"generated_by": "status_measures",
+      "status": "delivered"}}'
+- name: delivered_revenue
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: SUM(CASE WHEN (orders.STATUS = 'delivered') THEN orders.AMOUNT END)
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "format": "currency", "title": "Delivered revenue", "meta": {"generated_by":
+      "status_measures", "status": "delivered"}}'
+- name: returned_count
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: COUNT(DISTINCT CASE WHEN (orders.STATUS = 'returned') THEN orders.id
+        END)
+  datatype: Integer
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "title": "Returned orders", "meta": {"generated_by": "status_measures",
+      "status": "returned"}}'
+- name: returned_revenue
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: SUM(CASE WHEN (orders.STATUS = 'returned') THEN orders.AMOUNT END)
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "format": "currency", "title": "Returned revenue", "meta": {"generated_by":
+      "status_measures", "status": "returned"}}'
+- name: completed_count
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: COUNT(DISTINCT CASE WHEN (orders.STATUS IN ('shipped', 'delivered'))
+        THEN orders.id END)
+  datatype: Integer
+- name: high_value_completed_revenue
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: SUM(CASE WHEN (orders.STATUS IN ('shipped', 'delivered')) AND (orders.AMOUNT
+        >= 1000) THEN orders.AMOUNT END)
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "format": "currency"}'
+- name: return_rate
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: 1.0 * returned_count / NULLIF(orders__count, 0)
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "format": "percent"}'
+- name: revenue_thousands
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: orders__revenue / 1000
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "public": false}'
+- name: debug_row_count
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: COUNT(DISTINCT orders.id)
+  datatype: Integer
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "public": false, "meta": {"environment": "default"}}'
+- name: pg_orders__count
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: COUNT(DISTINCT pg_orders.id)
+  datatype: Integer
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "name": "count"}'
+- name: pg_orders__revenue
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: SUM(pg_orders.amount)
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "format": "currency", "name": "revenue"}'
+- name: p90_amount
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY pg_orders.amount)
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "format": "currency"}'
+- name: ch_order_item_facts__count
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: COUNT(DISTINCT ch_order_item_facts.id)
+  datatype: Integer
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "name": "count"}'
+- name: line_amount
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: SUM(ch_order_item_facts.line_amount)
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "format": "currency"}'
+- name: orders
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: COUNT(DISTINCT ch_order_item_facts.order_id)
+  datatype: Integer
+- name: orders_approx
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: APPROX_COUNT_DISTINCT(ch_order_item_facts.order_id)
+  datatype: Integer
+- name: bq_events__count
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: COUNT(DISTINCT bq_events.id)
+  datatype: Integer
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "name": "count"}'
+- name: amount
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: SUM(bq_events.amount)
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "format": "currency"}'
+- name: products__count
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: COUNT(DISTINCT products.id)
+  datatype: Integer
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "name": "count"}'
+- name: active_count
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: COUNT(DISTINCT CASE WHEN (products.IS_ACTIVE) THEN products.id END)
+  datatype: Integer
+- name: avg_price
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: AVG(products.PRICE)
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "format": "currency"}'
+- name: min_price
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: MIN(products.PRICE)
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "format": "currency"}'
+- name: max_price
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: MAX(products.PRICE)
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "format": "currency"}'
+- name: stock_quantity
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: SUM(products.QUANTITY)
+- name: stock_value
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: SUM(products.PRICE * products.QUANTITY)
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "format": "currency"}'
+- name: active_ratio
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: 1.0 * active_count / NULLIF(products__count, 0)
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "format": "percent"}'
+- name: snapshot_stock_quantity
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: SUM(product_snapshots.QUANTITY)
+custom_extensions:
+- vendor_name: CUBE
+  data: '{"_v": 1, "views": {"customer_360": {"name": "customer_360", "title": "Customer
+    360", "description": "Customers with their order history", "meta": {"owner": "sales-analytics"},
+    "cubes": [{"join_path": "customers", "includes": ["id", "full_name", "region",
+    "lifetime_revenue", "lifetime_tier", "count", "emea", "geography"]}, {"join_path":
+    "customers.orders", "prefix": true, "includes": ["count", "revenue", "first_order_at",
+    "new_count", "paid_count", "shipped_count", "delivered_count", "returned_count"]}]},
+    "events_internal": {"name": "events_internal", "public": false, "description":
+    "A hidden view for the product team", "cubes": [{"join_path": "events", "includes":
+    "*"}]}, "order_items_detail": {"name": "order_items_detail", "title": "Order items",
+    "description": "Order lines with the product and the status of the order", "cubes":
+    [{"join_path": "order_items", "includes": ["count", "quantity_sold", "gross_amount",
+    "discount_amount", "net_amount", "has_discount"]}, {"join_path": "order_items.products",
+    "includes": [{"name": "name", "alias": "product", "title": "Product"}, {"name":
+    "category", "alias": "product_category"}, "is_active", "catalog"]}, {"join_path":
+    "order_items.orders", "prefix": true, "includes": ["status", "ordered_at"]}],
+    "measures": [{"name": "discount_share", "multi_stage": true, "sql": "{CUBE.discount_amount}
+    / NULLIF({CUBE.gross_amount}, 0)", "type": "number", "format": "percent"}], "dimensions":
+    [{"name": "product_label", "sql": "{CUBE.product_category} || '' / '' || {CUBE.product}",
+    "type": "string"}], "default_filters": [{"member": "is_active", "operator": "equals",
+    "values": ["true"], "unless": ["is_active"]}]}, "orders_overview": {"name": "orders_overview",
+    "title": "Orders overview", "description": "Orders with the customer and the fiscal
+    calendar. The main view for revenue questions.", "meta": {"owner": "sales-analytics",
+    "certified": true, "ai_context": "Use this view for revenue and order count questions.
+    Revenue is in USD."}, "cubes": [{"join_path": "orders", "includes": ["count",
+    "revenue", "average_order_value", "return_rate", "revenue_prior_month", "revenue_month_over_month",
+    "revenue_all_statuses", "revenue_share_of_statuses", "cumulative_revenue", {"name":
+    "status", "alias": "order_status", "title": "Order status", "description": "Status
+    of the order, with the name that the view gives it"}, "status_group", "is_high_value",
+    "ordered_at", "completed", "order_status"]}, {"join_path": "orders.customers",
+    "prefix": true, "includes": "*", "excludes": ["email", "lifetime_revenue", "lifetime_tier",
+    "count", "region_count", "geography", "emea", "region_location"]}, {"join_path":
+    "orders.calendar", "alias": "fiscal", "prefix": true, "includes": ["fiscal_year",
+    "is_weekend"]}], "folders": [{"name": "Order", "includes": ["order_status", "status_group",
+    "is_high_value", "ordered_at"]}, {"name": "Customer", "includes": [{"join_path":
+    "orders.customers"}]}, {"name": "Metrics", "includes": ["count", "revenue", "average_order_value",
+    {"name": "Time comparison", "includes": ["revenue_prior_month", "revenue_month_over_month",
+    "cumulative_revenue"]}]}], "access_policy": [{"group": "default", "member_level":
+    {"includes": "*"}, "row_level": {"allow_all": true}}, {"group": "analyst", "member_level":
+    {"excludes": ["customers_full_name"]}, "row_level": {"filters": [{"member": "customers_region",
+    "operator": "equals", "values": ["{ securityContext.region }"]}]}}]}}, "view_files":
+    {"customer_360": "views/customer_360.yml", "events_internal": "views/customer_360.yml",
+    "order_items_detail": "views/order_items_detail.yml", "orders_overview": "views/orders_overview.yml"},
+    "cube_files": {"calendar": "cubes/calendar.yml", "customers": "cubes/customers.yml",
+    "events": "cubes/events.yml", "order_items": "cubes/order_items.yml", "orders":
+    "cubes/orders.yml", "pg_orders": "cubes/other_sources.yml", "ch_order_item_facts":
+    "cubes/other_sources.yml", "bq_events": "cubes/other_sources.yml", "products":
+    "cubes/products.yml", "product_snapshots": "cubes/products.yml"}}'
