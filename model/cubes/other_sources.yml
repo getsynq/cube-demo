@@ -1,0 +1,131 @@
+# Plain YAML, no Jinja. Cubes on the other data sources. Each cube uses the SQL dialect
+# of its data source.
+cubes:
+  # PostgreSQL: the same orders as the Snowflake cube `orders`.
+  - name: pg_orders
+    sql_table: recon_demo.orders
+    data_source: postgres
+    title: Orders (PostgreSQL)
+
+    dimensions:
+      - name: id
+        sql: id
+        type: number
+        primary_key: true
+
+      - name: status
+        sql: status
+        type: string
+
+      - name: ordered_at
+        sql: ordered_at
+        type: time
+
+      - name: order_hour
+        sql: "EXTRACT(HOUR FROM {CUBE}.ordered_at AT TIME ZONE 'UTC')"
+        type: number
+
+    measures:
+      - name: count
+        type: count
+
+      - name: revenue
+        sql: amount
+        type: sum
+        format: currency
+
+      - name: p90_amount
+        sql: "PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY {CUBE}.amount)"
+        type: number
+        format: currency
+
+    pre_aggregations:
+      - name: status_monthly
+        measures:
+          - CUBE.count
+          - CUBE.revenue
+        dimensions:
+          - CUBE.status
+        time_dimension: CUBE.ordered_at
+        granularity: month
+
+  # ClickHouse.
+  - name: ch_order_item_facts
+    sql_table: synq_test.order_item_facts
+    data_source: clickhouse
+    title: Order item facts (ClickHouse)
+
+    dimensions:
+      - name: id
+        sql: "concat(toString({CUBE}.order_id), '-', toString({CUBE}.item_id))"
+        type: string
+        primary_key: true
+
+      - name: product_name
+        sql: product_name
+        type: string
+
+      - name: category
+        sql: category
+        type: string
+
+      - name: loaded_at
+        sql: loaded_at
+        type: time
+
+    measures:
+      - name: count
+        type: count
+
+      - name: line_amount
+        sql: line_amount
+        type: sum
+        format: currency
+
+      - name: orders
+        sql: order_id
+        type: count_distinct
+
+      - name: orders_approx
+        sql: order_id
+        type: count_distinct_approx
+
+  # BigQuery.
+  - name: bq_events
+    sql: >
+      SELECT
+        event_id,
+        event_ts,
+        event_name,
+        JSON_VALUE(payload, '$.plan') AS plan,
+        SAFE_CAST(JSON_VALUE(payload, '$.amount') AS NUMERIC) AS amount
+      FROM synq_dwhtesting.events_hourly
+    data_source: bigquery
+    title: Events (BigQuery)
+
+    dimensions:
+      - name: id
+        sql: event_id
+        type: string
+        primary_key: true
+
+      - name: name
+        sql: event_name
+        type: string
+
+      - name: plan
+        sql: plan
+        type: string
+
+      - name: event_at
+        sql: event_ts
+        type: time
+
+    measures:
+      - name: count
+        type: count
+
+      - name: amount
+        sql: amount
+        type: sum
+        format: currency

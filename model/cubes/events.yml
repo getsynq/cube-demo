@@ -1,0 +1,98 @@
+{#- YAML with Jinja. Shows: a cube on a `sql` query, FILTER_PARAMS and FILTER_GROUP,
+    COMPILE_CONTEXT in an `if`, a `for` loop that makes dimensions and measures,
+    and an access policy with member_level and row_level. -#}
+{%- import "macros/common.jinja" as common -%}
+{%- import "macros/time.jinja" as time -%}
+{%- set security_context = COMPILE_CONTEXT.securityContext | default({}) -%}
+{%- set payload_fields = {'plan': 'string', 'device': 'string'} -%}
+{%- set event_names = ['signup', 'login', 'purchase'] -%}
+cubes:
+  - name: events
+    title: Events
+    description: Product events with fields from the JSON payload
+    # FILTER_PARAMS moves the filters of the query into the inner SELECT.
+    # FILTER_GROUP keeps the AND / OR structure of two or more FILTER_PARAMS.
+    sql: >
+      SELECT
+        e.EVENT_ID,
+        e.EVENT_NAME,
+        e.EVENT_TS,
+{%- for field in payload_fields %}
+        e.PAYLOAD:{{ field | safe }}::STRING AS PAYLOAD_{{ field | upper | safe }},
+{%- endfor %}
+        e.PAYLOAD:amount::NUMBER(10,2) AS AMOUNT
+      FROM {{ fq_table('PIPELINES', 'EVENTS_RAW') | safe }} AS e
+      WHERE {FILTER_GROUP(
+        FILTER_PARAMS.events.event_at.filter('e.EVENT_TS'),
+        FILTER_PARAMS.events.name.filter('e.EVENT_NAME')
+      )}
+{%- if security_context.environment == 'production' %}
+        AND e.EVENT_NAME <> 'test'
+{%- endif %}
+    {{- common.sales_meta('product-analytics') }}
+
+    dimensions:
+      - name: id
+        sql: EVENT_ID
+        type: number
+        primary_key: true
+
+      - name: name
+        sql: EVENT_NAME
+        type: string
+
+      - name: event_at
+        sql: EVENT_TS
+        type: time
+        {{- time.business_granularities() }}
+{% for field, type in payload_fields | items %}
+      - name: {{ field | safe }}
+        title: {{ field | title_case | safe }} (payload)
+        sql: PAYLOAD_{{ field | upper | safe }}
+        type: {{ type | safe }}
+        meta:
+          source: payload
+{% endfor %}
+    measures:
+      - name: count
+        type: count
+
+      - name: purchase_amount
+        sql: AMOUNT
+        type: sum
+        format: currency
+{% for event_name in event_names %}
+      - name: {{ event_name | safe }}_count
+        type: count
+        filters:
+          - sql: "{CUBE}.EVENT_NAME = '{{ event_name | safe }}'"
+{% endfor %}
+      - name: signup_to_purchase_rate
+        sql: "1.0 * {purchase_count} / NULLIF({signup_count}, 0)"
+        type: number
+        format: percent
+
+    segments:
+      - name: purchases
+        sql: "{CUBE}.EVENT_NAME = 'purchase'"
+
+    access_policy:
+      - group: default
+        member_level:
+          includes: "*"
+        row_level:
+          allow_all: true
+
+      - group: marketing
+        member_level:
+          includes:
+            - name
+            - event_at
+            - plan
+            - count
+            - signup_count
+        row_level:
+          filters:
+            - member: name
+              operator: equals
+              values: ["signup", "login"]

@@ -1,0 +1,21 @@
+{#- Custom granularities that each business time dimension has (10 spaces). -#}
+{%- macro business_granularities(fiscal_year_origin='2026-02-01') %}
+        granularities:
+          - name: half_hour
+            interval: 30 minutes
+
+          - name: week_starting_on_sunday
+            title: Week (Sunday start)
+            interval: 1 week
+            offset: -1 day
+
+          - name: fiscal_year
+            title: Fiscal year
+            interval: 1 year
+            origin: "{{ fiscal_year_origin | safe }}"
+
+          - name: fiscal_quarter
+            title: Fiscal quarter
+            interval: 3 months
+            origin: "{{ fiscal_year_origin | safe }}"
+{%- endmacro -%}

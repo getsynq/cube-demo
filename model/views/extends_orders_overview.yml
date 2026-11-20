@@ -1,0 +1,12 @@
+# Plain YAML, no Jinja. Shows a view that extends a view.
+views:
+  - name: orders_overview_finance
+    extends: orders_overview
+    title: Orders overview (finance)
+    description: The orders overview with the amount range measures
+
+    cubes:
+      - join_path: orders
+        includes:
+          - min_amount
+          - max_amount
