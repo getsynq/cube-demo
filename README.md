@@ -170,6 +170,25 @@ A consumer that does not read this string sees only the Ossie properties.
 - The converter writes `version: 0.3.0.dev0`. A validator with the `0.2.0.dev0` schema rejects the document for the version only.
 - With the version changed to `0.2.0.dev0`, the document is valid and has five warnings.
 - Each warning is for a relationship: `to_columns` has the column name (`ID`) and `primary_key` has the member name (`id`), so the two names do not match.
+- An import of the document into another schema format and an export back keeps each dataset, field, metric, relationship and extension. Only the primary key of four datasets changes from `id` to `ID`, for the same reason.
+
+## Git repository
+
+A reader of the files in git gets each property of the model, but not in the form that Cube compiles.
+
+| Feature | In the files |
+|---|---|
+| A cube or a view in plain YAML | Each property, as written |
+| A file with Jinja | The template. The reader must render it with a minijinja engine and `model/globals.py`. |
+| Python globals | Python code. The reader must run it to get the values. |
+| `COMPILE_CONTEXT` | The branches of each variant. The security context decides the variant, and it is not in the files. |
+| Model in JavaScript | JavaScript code. The reader must run it. |
+| `extends` | The parent name and the changed members. The reader must merge the two. |
+| View `includes: "*"`, `prefix`, `alias` | The rule. The reader must resolve the member list. |
+| `data_source` | The name. The warehouse type and the connection are in environment variables of the deployment. |
+| `cube.py` | Python code for the groups, the query rewrite and the application identifier |
+
+`scripts/render_jinja.py` shows the least work that a reader of the files must do for the Jinja files.
 
 ## Notes on Cube v1.8.30
 
