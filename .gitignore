@@ -1,7 +1,24 @@
+# Credentials. scripts/make_env.py writes them, and they must not be in git.
 .env
+.env.*
 .secrets/
+*.p8
+*.pem
+
+# Cube runtime
 .cubestore/
 node_modules/
+
+# Python
 __pycache__/
+*.pyc
 .venv/
+
+# Temporary files of scripts/collect_cloud.sh
+sources/**/*.raw
+
+# Local tools
 .DS_Store
+.idea/
+.vscode/
+.claude/settings.local.json
