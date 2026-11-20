@@ -1,0 +1,45 @@
+{#- Shared macros. Each macro writes YAML at the indentation of a member list (6 spaces). -#}
+
+{#- A sum measure with the currency format. -#}
+{%- macro money_sum(name, column, description='') %}
+      - name: {{ name | safe }}
+        sql: "{CUBE}.{{ column | safe }}"
+        type: sum
+        format: currency
+{%- if description %}
+        description: {{ description }}
+{%- endif %}
+{%- endmacro -%}
+
+{#- One count measure and one revenue measure for each status. -#}
+{%- macro status_measures(statuses, status_column, amount_column) %}
+{%- for status in statuses %}
+      - name: {{ status | safe }}_count
+        title: {{ status | title_case | safe }} orders
+        type: count
+        filters:
+          - sql: "{CUBE}.{{ status_column | safe }} = '{{ status | safe }}'"
+        meta:
+          generated_by: status_measures
+          status: {{ status }}
+
+      - name: {{ status | safe }}_revenue
+        title: {{ status | title_case | safe }} revenue
+        sql: "{CUBE}.{{ amount_column | safe }}"
+        type: sum
+        format: currency
+        filters:
+          - sql: "{CUBE}.{{ status_column | safe }} = '{{ status | safe }}'"
+        meta:
+          generated_by: status_measures
+          status: {{ status }}
+{% endfor %}
+{%- endmacro -%}
+
+{#- The meta block that each cube of the sales domain has. -#}
+{%- macro sales_meta(owner, tier='silver') %}
+    meta:
+      domain: sales
+      owner: {{ owner }}
+      tier: {{ tier }}
+{%- endmacro -%}

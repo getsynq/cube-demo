@@ -1,0 +1,51 @@
+# Plain YAML, no Jinja. Shows: a join path of three cubes, a measure and a dimension
+# that the view defines, and default_filters.
+views:
+  - name: order_items_detail
+    title: Order items
+    description: Order lines with the product and the status of the order
+
+    cubes:
+      - join_path: order_items
+        includes:
+          - count
+          - quantity_sold
+          - gross_amount
+          - discount_amount
+          - net_amount
+          - has_discount
+
+      - join_path: order_items.products
+        includes:
+          - name: name
+            alias: product
+            title: Product
+          - name: category
+            alias: product_category
+          - is_active
+          - catalog
+
+      - join_path: order_items.orders
+        prefix: true
+        includes:
+          - status
+          - ordered_at
+
+    measures:
+      - name: discount_share
+        multi_stage: true
+        sql: "{CUBE.discount_amount} / NULLIF({CUBE.gross_amount}, 0)"
+        type: number
+        format: percent
+
+    dimensions:
+      - name: product_label
+        sql: "{CUBE.product_category} || ' / ' || {CUBE.product}"
+        type: string
+
+    default_filters:
+      - member: is_active
+        operator: equals
+        values: ["true"]
+        unless:
+          - is_active

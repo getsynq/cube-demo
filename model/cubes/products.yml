@@ -1,0 +1,134 @@
+# Plain YAML, no Jinja. one_to_one join to a hidden cube.
+cubes:
+  - name: products
+    sql_table: DWH_TESTING.SCHEMA_A.PRODUCTS
+    title: Products
+    description: Product catalog with inventory tracking
+    meta:
+      owner: catalog-team
+
+    joins:
+      - name: product_snapshots
+        relationship: one_to_one
+        sql: "{CUBE}.ID = {product_snapshots.id}"
+
+    dimensions:
+      - name: id
+        sql: ID
+        type: number
+        primary_key: true
+
+      - name: name
+        sql: NAME
+        type: string
+        description: Product display name
+
+      - name: category
+        sql: CATEGORY
+        type: string
+
+      - name: sku
+        sql: "TRIM({CUBE}.SKU)"
+        type: string
+        title: SKU
+
+      - name: is_active
+        sql: IS_ACTIVE
+        type: boolean
+
+      - name: price
+        sql: PRICE
+        type: number
+        format: currency
+
+      - name: price_band
+        sql: >
+          CASE
+            WHEN {CUBE}.PRICE < 10 THEN 'budget'
+            WHEN {CUBE}.PRICE < 30 THEN 'standard'
+            ELSE 'premium'
+          END
+        type: string
+
+      - name: created_at
+        sql: CREATED_AT
+        type: time
+
+      - name: product_page
+        sql: "'https://example.com/products/' || {CUBE}.ID"
+        type: string
+        format: link
+
+    measures:
+      - name: count
+        type: count
+
+      - name: active_count
+        type: count
+        filters:
+          - sql: "{CUBE}.IS_ACTIVE"
+
+      - name: avg_price
+        sql: PRICE
+        type: avg
+        format: currency
+
+      - name: min_price
+        sql: PRICE
+        type: min
+        format: currency
+
+      - name: max_price
+        sql: PRICE
+        type: max
+        format: currency
+
+      - name: stock_quantity
+        sql: QUANTITY
+        type: sum
+
+      - name: stock_value
+        sql: "{CUBE}.PRICE * {CUBE}.QUANTITY"
+        type: sum
+        format: currency
+
+      - name: active_ratio
+        sql: "1.0 * {active_count} / NULLIF({count}, 0)"
+        type: number
+        format: percent
+
+    segments:
+      - name: active
+        sql: "{CUBE}.IS_ACTIVE"
+
+      - name: electronics
+        sql: "{CUBE}.CATEGORY = 'Electronics'"
+
+    hierarchies:
+      - name: catalog
+        title: Catalog
+        levels:
+          - category
+          - name
+
+  # A hidden cube: no member is visible, other cubes read it through a join.
+  - name: product_snapshots
+    sql_table: DWH_TESTING.SCHEMA_A.PRODUCTS_CLONE
+    public: false
+    description: Zero-copy clone of the product catalog, taken at the last reseed
+
+    dimensions:
+      - name: id
+        sql: ID
+        type: number
+        primary_key: true
+
+      - name: snapshot_price
+        sql: PRICE
+        type: number
+        format: currency
+
+    measures:
+      - name: snapshot_stock_quantity
+        sql: QUANTITY
+        type: sum

@@ -1,0 +1,370 @@
+{#- YAML with Jinja. Shows: macro imports, set / if / for, Python globals, COMPILE_CONTEXT,
+    every measure type, measure filters, multi-stage measures (time_shift, reduce_by, group_by,
+    rank, case), rolling windows, custom granularities, a switch dimension, segments,
+    a hierarchy, pre-aggregations and an access policy. -#}
+{%- import "macros/common.jinja" as common -%}
+{%- import "macros/time.jinja" as time -%}
+{%- set statuses = order_statuses() -%}
+{%- set completed_statuses = ['shipped', 'delivered'] -%}
+{%- set security_context = COMPILE_CONTEXT.securityContext | default({}) -%}
+{%- set environment = security_context.environment | default('default') -%}
+cubes:
+  - name: orders
+    sql_table: {{ fq_table('RECON_DEMO', 'ORDERS') | safe }}
+    title: Orders
+    description: One row for each customer order
+    {{- common.sales_meta('sales-analytics', 'gold') }}
+
+    joins:
+      - name: customers
+        relationship: many_to_one
+        sql: "{CUBE}.CUSTOMER_ID = {customers.id}"
+
+      - name: calendar
+        relationship: many_to_one
+        sql: "{CUBE.ordered_date} = {calendar.date}"
+
+    dimensions:
+      - name: id
+        sql: ID
+        type: number
+        primary_key: true
+        public: true
+        format: id
+        description: Unique order identifier
+
+      - name: customer_id
+        sql: CUSTOMER_ID
+        type: number
+        public: false
+
+      # A proxy dimension: the SQL is a member of a joined cube.
+      - name: customer_region
+        sql: "{customers.region}"
+        type: string
+
+      - name: status
+        sql: STATUS
+        type: string
+        description: "Status of the order: {{ statuses | join(', ') | safe }}"
+        meta:
+          allowed_values: {{ statuses }}
+
+      # A dimension with `case` and labels.
+      - name: status_group
+        type: string
+        case:
+          when:
+            - sql: "{CUBE}.STATUS IN ('new', 'paid')"
+              label: open
+            - sql: "{CUBE}.STATUS IN ('shipped', 'delivered')"
+              label: completed
+          else:
+            label: returned
+
+      - name: amount
+        sql: AMOUNT
+        type: number
+        format: currency
+        meta:
+          unit: USD
+
+      - name: is_high_value
+        title: High value order
+        sql: "{CUBE}.AMOUNT >= {{ high_value_threshold | safe }}"
+        type: boolean
+
+      - name: amount_bucket
+        sql: "FLOOR({CUBE}.AMOUNT / 250) * 250"
+        type: number
+        public: false
+
+      - name: ordered_at
+        sql: ORDERED_AT
+        type: time
+        title: Ordered at
+        description: Time when the customer made the order
+        {{- time.business_granularities() }}
+
+      # The calendar cube joins on a time dimension.
+      - name: ordered_date
+        sql: "DATE_TRUNC('day', {CUBE}.ORDERED_AT)::TIMESTAMP_NTZ"
+        type: time
+        public: false
+
+      # A switch dimension has no SQL. A `case` measure reads the value that the query selects.
+      - name: amount_unit
+        type: switch
+        values:
+          - units
+          - thousands
+
+    measures:
+      - name: count
+        type: count
+        drill_members: [id, status, amount, ordered_at]
+
+      - name: customer_count
+        sql: CUSTOMER_ID
+        type: count_distinct
+        title: Customers with orders
+      {{ common.money_sum('revenue', 'AMOUNT', 'Sum of the order amounts') }}
+
+      - name: avg_amount
+        sql: AMOUNT
+        type: avg
+        format: currency
+
+      - name: min_amount
+        sql: AMOUNT
+        type: min
+        format: currency
+
+      - name: max_amount
+        sql: AMOUNT
+        type: max
+        format: currency
+
+      - name: average_order_value
+        sql: "{revenue} / NULLIF({count}, 0)"
+        type: number
+        format: currency
+        description: Revenue divided by the number of orders
+
+      # number_agg: an aggregate function that Cube does not know, on top of a measure.
+      # add_group_by adds `customer_id` to the inner query, so this is the median of the customer revenues.
+      - name: median_customer_revenue
+        multi_stage: true
+        sql: "MEDIAN({revenue})"
+        type: number_agg
+        format: currency
+        add_group_by:
+          - customer_id
+
+      - name: first_order_at
+        sql: "MIN({CUBE}.ORDERED_AT)"
+        type: time
+
+      - name: has_returns
+        sql: "BOOLOR_AGG({CUBE}.STATUS = 'returned')"
+        type: boolean
+
+      - name: statuses_seen
+        sql: "LISTAGG(DISTINCT {CUBE}.STATUS, ', ')"
+        type: string
+{{ common.status_measures(statuses, 'STATUS', 'AMOUNT') }}
+      - name: completed_count
+        type: count
+        filters:
+          - sql: "{CUBE}.STATUS IN ({% for s in completed_statuses %}'{{ s | safe }}'{% if not loop.last %}, {% endif %}{% endfor %})"
+
+      - name: high_value_completed_revenue
+        sql: AMOUNT
+        type: sum
+        format: currency
+        filters:
+          - sql: "{CUBE}.STATUS IN ('shipped', 'delivered')"
+          - sql: "{CUBE}.AMOUNT >= {{ high_value_threshold | safe }}"
+
+      - name: return_rate
+        sql: "1.0 * {returned_count} / NULLIF({count}, 0)"
+        type: number
+        format: percent
+
+      # Rolling windows.
+      - name: revenue_trailing_7_days
+        sql: AMOUNT
+        type: sum
+        format: currency
+        rolling_window:
+          trailing: 7 day
+          offset: end
+
+      - name: cumulative_revenue
+        sql: AMOUNT
+        type: sum
+        format: currency
+        rolling_window:
+          trailing: unbounded
+
+      - name: revenue_year_to_date
+        sql: AMOUNT
+        type: sum
+        format: currency
+        rolling_window:
+          type: to_date
+          granularity: year
+
+      # Multi-stage measures.
+      - name: revenue_prior_month
+        multi_stage: true
+        sql: "{revenue}"
+        type: number
+        format: currency
+        time_shift:
+          - time_dimension: ordered_at
+            interval: 1 month
+            type: prior
+
+      - name: revenue_month_over_month
+        multi_stage: true
+        sql: "({revenue} - {revenue_prior_month}) / NULLIF({revenue_prior_month}, 0)"
+        type: number
+        format: percent
+        title: Revenue change, month over month
+
+      # A named time shift, defined on the calendar cube.
+      - name: revenue_prior_fiscal_year
+        multi_stage: true
+        sql: "{revenue}"
+        type: number
+        format: currency
+        time_shift:
+          - name: prior_fiscal_year
+
+      # reduce_by: remove `status` from the grouping of the query.
+      - name: revenue_all_statuses
+        multi_stage: true
+        sql: "{revenue}"
+        type: sum
+        format: currency
+        reduce_by:
+          - status
+
+      - name: revenue_share_of_statuses
+        multi_stage: true
+        sql: "{revenue} / NULLIF({revenue_all_statuses}, 0)"
+        type: number
+        format: percent
+
+      # group_by: always group by `status_group` only.
+      - name: revenue_of_status_group
+        multi_stage: true
+        sql: "{revenue}"
+        type: sum
+        format: currency
+        group_by:
+          - status_group
+
+      - name: status_revenue_rank
+        multi_stage: true
+        type: rank
+        order_by:
+          - sql: "{revenue}"
+            dir: desc
+        reduce_by:
+          - status
+
+      - name: revenue_thousands
+        sql: "{revenue} / 1000"
+        type: number
+        public: false
+
+      - name: revenue_in_unit
+        multi_stage: true
+        type: number
+        case:
+          switch: "{CUBE.amount_unit}"
+          when:
+            - value: thousands
+              sql: "{CUBE.revenue_thousands}"
+          else:
+            sql: "{CUBE.revenue}"
+{% if environment != 'production' %}
+      # This member exists only outside the production environment.
+      - name: debug_row_count
+        type: count
+        public: false
+        meta:
+          environment: {{ environment }}
+{% endif %}
+    segments:
+      - name: completed
+        sql: "{CUBE}.STATUS IN ('shipped', 'delivered')"
+        description: Orders that the customer received or will receive
+
+      - name: high_value
+        sql: "{CUBE}.AMOUNT >= {{ high_value_threshold | safe }}"
+
+    hierarchies:
+      - name: order_status
+        title: Order status
+        levels:
+          - status_group
+          - status
+
+    pre_aggregations:
+      - name: revenue_by_status_daily
+        type: rollup
+        measures:
+          - CUBE.count
+          - CUBE.revenue
+          - CUBE.returned_count
+        dimensions:
+          - CUBE.status
+        time_dimension: CUBE.ordered_at
+        granularity: day
+        partition_granularity: month
+        build_range_start:
+          sql: SELECT '2026-01-01'::TIMESTAMP
+        build_range_end:
+          sql: SELECT '2026-07-01'::TIMESTAMP
+        refresh_key:
+          every: 1 day
+          incremental: true
+          update_window: 7 day
+        indexes:
+          - name: status_index
+            columns:
+              - CUBE.status
+          - name: status_aggregate_index
+            columns:
+              - CUBE.status
+            type: aggregate
+
+      - name: customers_monthly
+        measures:
+          - CUBE.count
+          - CUBE.revenue
+        dimensions:
+          - customers.region
+        time_dimension: CUBE.ordered_at
+        granularity: month
+        refresh_key:
+          sql: SELECT MAX(ORDERED_AT) FROM {{ fq_table('RECON_DEMO', 'ORDERS') | safe }}
+
+    access_policy:
+      # Development mode and each request without groups.
+      - group: default
+        member_level:
+          includes: "*"
+        row_level:
+          allow_all: true
+
+      # An analyst sees no customer key and only the orders of one region.
+      - group: analyst
+        member_level:
+          excludes:
+            - customer_id
+            - debug_row_count
+        row_level:
+          filters:
+            - member: customer_region
+              operator: equals
+              values: ["{ securityContext.region }"]
+
+      - group: finance
+        conditions:
+          - if: "{ securityContext.is_full_time_employee }"
+        member_level:
+          includes:
+            - status
+            - ordered_at
+            - count
+            - revenue
+            - average_order_value
+        row_level:
+          filters:
+            - member: status
+              operator: notEquals
+              values: ["new"]

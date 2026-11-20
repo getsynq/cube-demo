@@ -1,0 +1,94 @@
+# Plain YAML, no Jinja. Shows: join_path, includes as names and as objects (alias, title),
+# the "*" include with excludes, prefix, a custom prefix (alias), folders with a nested folder,
+# view meta with ai_context, and an access policy on a view.
+views:
+  - name: orders_overview
+    title: Orders overview
+    description: Orders with the customer and the fiscal calendar. The main view for revenue questions.
+    meta:
+      owner: sales-analytics
+      certified: true
+      ai_context: Use this view for revenue and order count questions. Revenue is in USD.
+
+    cubes:
+      - join_path: orders
+        includes:
+          - count
+          - revenue
+          - average_order_value
+          - return_rate
+          - revenue_prior_month
+          - revenue_month_over_month
+          - revenue_all_statuses
+          - revenue_share_of_statuses
+          - cumulative_revenue
+          - name: status
+            alias: order_status
+            title: Order status
+            description: Status of the order, with the name that the view gives it
+          - status_group
+          - is_high_value
+          - ordered_at
+          - completed
+          - order_status
+
+      - join_path: orders.customers
+        prefix: true
+        includes: "*"
+        excludes:
+          - email
+          - lifetime_revenue
+          - lifetime_tier
+          - count
+          - region_count
+          - geography
+          - emea
+          # Cube v1.8.30: a query that selects a geo dimension through a view fails.
+          - region_location
+
+      - join_path: orders.calendar
+        alias: fiscal
+        prefix: true
+        includes:
+          - fiscal_year
+          - is_weekend
+
+    folders:
+      - name: Order
+        includes:
+          - order_status
+          - status_group
+          - is_high_value
+          - ordered_at
+
+      - name: Customer
+        includes:
+          - join_path: orders.customers
+
+      - name: Metrics
+        includes:
+          - count
+          - revenue
+          - average_order_value
+          - name: Time comparison
+            includes:
+              - revenue_prior_month
+              - revenue_month_over_month
+              - cumulative_revenue
+
+    access_policy:
+      - group: default
+        member_level:
+          includes: "*"
+        row_level:
+          allow_all: true
+
+      - group: analyst
+        member_level:
+          excludes:
+            - customers_full_name
+        row_level:
+          filters:
+            - member: customers_region
+              operator: equals
+              values: ["{ securityContext.region }"]
