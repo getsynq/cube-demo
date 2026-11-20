@@ -27,6 +27,7 @@ A public commit is permanent. A force push does not remove it from public archiv
 | `scripts/make_env.py` | Writes `.env` and `.secrets/` from the private test warehouse configuration |
 | `scripts/smoke.py` | Runs the queries in `tests/queries.json` against the local Cube |
 | `scripts/render_jinja.py` | Renders the Jinja templates to plain YAML for the offline Ossie converter |
+| `scripts/collect_core_sql.py` | Saves the compiled SQL and the lineage of each member from `/v1/sql` |
 | `scripts/cloud_env.py` | Sets the environment variables of the Cube Cloud deployment from `.env` |
 | `scripts/collect_*.sh` | Save what each metadata source returns into `sources/` |
 | `sources/` | The saved response of each metadata source, one directory for each source |

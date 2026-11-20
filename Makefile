@@ -1,4 +1,4 @@
-.PHONY: up down env logs smoke meta ossie-offline ossie-validate cloud
+.PHONY: up down env logs smoke meta core-sql ossie-offline ossie-validate cloud
 
 # Start the project: write .env and .secrets/, start Cube, wait until it is ready.
 up: env
@@ -22,6 +22,10 @@ smoke:
 # Save /v1/meta and /v1/meta?extended in sources/rest-meta/.
 meta:
 	scripts/collect_meta.sh
+
+# Save the SQL that Cube Core compiles for each member, with its tables and columns (needs uv).
+core-sql:
+	uvx --quiet --with sqlglot python scripts/collect_core_sql.py
 
 # Convert the model with the offline Apache Ossie converter (needs uv).
 ossie-offline:

@@ -20,6 +20,7 @@ The warehouses are private test fixtures. You need access to their configuration
 | `make up` | Starts Cube Core in development mode |
 | `make smoke` | Runs the queries in `tests/queries.json` |
 | `make meta` | Saves `/v1/meta` and `/v1/meta?extended` in `sources/rest-meta/` |
+| `make core-sql` | Saves the compiled SQL, the tables and the columns of each member in `sources/core-sql/` |
 | `make ossie-offline` | Converts the model with the offline Apache Ossie converter into `sources/ossie-offline/` |
 | `make ossie-validate` | Validates each Ossie document in `sources/` |
 | `make cloud` | Saves the Metadata API response and the Ossie export of a Cube Cloud deployment |
@@ -100,6 +101,23 @@ The responses are in `sources/rest-meta/`.
 | Pre-aggregations | `orders`, `pg_orders` | absent | The type, the granularity, the partition granularity, the member references, `refreshKey` (`every`, `incremental`, `updateWindow`) and the index types. The index columns, the `build_range` SQL and the `refresh_key` SQL are absent. |
 | `FILTER_PARAMS`, `FILTER_GROUP` | `events` | absent | The SQL of the cube, with the calls as text |
 | Access policy | `orders`, `events`, `orders_overview` | absent | absent |
+
+## Cube Core SQL endpoint
+
+Cube Core does not have the Metadata API: `/v1/entities` and `/v1/model-export` return status 404.
+`/v1/sql` closes the largest gap of `/v1/meta?extended` on Cube Core: the tables and the data source.
+
+`make core-sql` requests `/v1/sql` for each measure and each dimension, with a query of that one member and `ungrouped: true`.
+Cube compiles the SQL and does not run it. The result is in `sources/core-sql/members.json`.
+
+- The response has `dataSource` and the SQL in the dialect of the warehouse, with the full table names.
+- The SQL is after the render of Jinja, the merge of `extends` and the resolution of the joins and the views.
+- With `ungrouped: true`, Cube does not replace the tables with a pre-aggregation. Without it, 27 members of this model read a rollup table.
+- All 254 members of this model compile. A SQL parser finds the tables of each member, except the four members of `calendar`, which reads no table.
+- A member of a view gives the tables and the columns of the cube members behind it.
+- For a multi-stage measure, the SQL shows the base measure and the columns. The settings (`time_shift`, `reduce_by`, `group_by`) are not a separate property.
+- The response does not have the warehouse type of a data source.
+- The request needs a token with the `meta` scope and the `sql` scope. The access policies and `query_rewrite` apply to the security context of the token.
 
 ## Cube Cloud Metadata API
 
