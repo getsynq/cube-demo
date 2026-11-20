@@ -101,7 +101,66 @@ The responses are in `sources/rest-meta/`.
 | `FILTER_PARAMS`, `FILTER_GROUP` | `events` | absent | The SQL of the cube, with the calls as text |
 | Access policy | `orders`, `events`, `orders_overview` | absent | absent |
 
-The Cube Cloud Metadata API and the Cube Cloud Ossie export are not in this document yet. `make cloud` collects them.
+## Cube Cloud Metadata API
+
+`make cloud` collects the responses of a Cube Cloud deployment of this repository into `sources/cloud-metadata-api/`.
+The script creates a token with the scopes `meta` and `meta-private` from a Platform API key (`tokens-for-meta-sync`).
+
+| File | Request | Content |
+|---|---|---|
+| `data-sources.json` | `GET /v1/data-sources` | The name, the warehouse type and the database of each data source that connects. The two data sources in the private network are absent. |
+| `entities.json` | `GET /v1/entities?include_private=true` | The name, the type and the `public` flag of the 14 cubes and the 6 views |
+| `entities-all.json` | `POST /v1/entities/all` with `include_private` | The full metadata. The access policies hide members from this response. |
+| `entities-all-public.json` | `POST /v1/entities/all` | The same without the private cubes and views |
+| `model-export.json` | `POST /v1/model-export` | The full metadata of each cube, view and member. The access policies do not hide members. |
+| `meta.json`, `meta-extended.json` | `GET /v1/meta`, `GET /v1/meta?extended` | The REST API of Cube Core on the deployment. The token gives access to it. |
+
+All the responses are after the render of Jinja, the run of the JavaScript model and the merge of `extends`.
+
+| Feature | `/v1/model-export` |
+|---|---|
+| Cube on `sql_table` | `table_references` with the data source, the database, the schema and the table |
+| Cube on a `sql` query | The SQL of the cube, and `table_references` with the tables of the query |
+| `data_source` | In each table reference and each column reference |
+| Jinja, Python globals, JavaScript model, `extends` | The compiled members. The parent name of `extends` is absent. |
+| `COMPILE_CONTEXT` | One variant, for the security context of the token |
+| Measure | `agg_type`, the SQL, `filters`, `member_references` and `column_references` |
+| Multi-stage measures | `multi_stage`, `time_shift`, `reduce_by`, `group_by`, `add_group_by`, `order_by` and `case` |
+| `rolling_window` | The window |
+| Dimension | The SQL, `is_primary_key`, `granularities`, `case`, `values` of a `switch` dimension, `latitude` and `longitude`, `sub_query`, the references |
+| Joins | The cube, the relationship and the SQL. `cube_references` has the upstream cubes. |
+| Calendar cube | `calendar: true`, the time shifts and the granularity SQL |
+| Segments, hierarchies | Present, the segments with the SQL |
+| Views | The members with the SQL `${cube.member}`, the references to the cube members and to the columns, the folders with nested folders, `default_filters`, `meta` |
+| `public: false` | Present with `public: false` |
+| `title`, `description`, `meta` | Present |
+| `format` | absent |
+| Pre-aggregations | absent |
+| Access policy | absent |
+| File name | absent |
+| `FILTER_PARAMS`, `FILTER_GROUP` | The text of the calls in the SQL of the cube |
+
+Limits of the column lineage:
+
+- A member of a cube on `sql_table` has `column_references`. For a member of a cube on a `sql` query, the list is empty in most cases.
+- A cube on a query that does not read a table (`calendar`) has a table reference with the name `TABLE`.
+- A measure with `case` on a `switch` dimension has two column references that are not columns (`CUBE`, `amount_unit`).
+- A table of a data source that is not Snowflake has no database in the reference.
+
+`/v1/entities/all` has the same properties, without the SQL of the cube and without `add_group_by`.
+With `include_private`, it returns the private cubes and views. It does not return the members that the access policy of `orders` hides from the owner of the key: five private members and the hierarchy.
+
+## Cube Cloud Ossie export
+
+The export is in preview. Until Cube support turns it on for the account, the request returns status 403: "Ossie conversions are not enabled for this account."
+`make cloud` saves the responses in `sources/ossie-cloud/`.
+
+To deploy this repository to Cube Cloud:
+
+1. Create a deployment and connect it to the git repository with the SSH key and the webhook that the wizard shows.
+2. Put `CUBE_API_URL` and `CUBE_API_TOKEN` (a Platform API key of an administrator) in `.secrets/cloud.env`.
+3. Run `scripts/cloud_env.py <deployment id>`. This command sends the warehouse credentials of `.env` to the deployment.
+4. Run `make cloud`.
 
 ## Offline Ossie converter
 

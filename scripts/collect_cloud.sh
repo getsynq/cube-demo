@@ -1,37 +1,71 @@
 #!/usr/bin/env bash
 # Save what Cube Cloud returns for the deployed model: the Metadata API and the Ossie export.
 #
-# Necessary environment variables:
+# Necessary values, in the environment or in .secrets/cloud.env:
 #   CUBE_API_URL     tenant host of the Platform API, no slash at the end
-#   CUBE_API_TOKEN   Platform API key. The Ossie export needs SchemaRead and SqlRunnerRead.
-#   DEPLOYMENT_ID    the deployment
-#   CUBE_DATA_URL    base URL of the deployment data API, for example https://<host>/cubejs-api
-#   CUBE_META_TOKEN  token for the Metadata API with the scopes meta and meta-private
+#   CUBE_API_TOKEN   Platform API key of an administrator
+#   DEPLOYMENT_ID    optional. The default is the first deployment of the account.
 #
+# The script reads the environment and the data API URL from the Platform API.
+# It creates a token for the Metadata API with the scopes meta and meta-private.
 # The Ossie export is in preview. Cube support must turn it on for the account.
-# This script was written from the Cube docs. It was not run against a Cube Cloud account.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-: "${CUBE_API_URL:?}" "${CUBE_API_TOKEN:?}" "${DEPLOYMENT_ID:?}" "${CUBE_DATA_URL:?}" "${CUBE_META_TOKEN:?}"
+if [ -f .secrets/cloud.env ]; then
+  set -a
+  . .secrets/cloud.env
+  set +a
+fi
+: "${CUBE_API_URL:?}" "${CUBE_API_TOKEN:?}"
+
+auth="Authorization: Bearer $CUBE_API_TOKEN"
+platform() { curl --fail --silent --show-error -H "$auth" -H 'Content-Type: application/json' "$@"; }
+field() { python3 -c "import json,sys; d=json.load(sys.stdin); print($1)"; }
+
+DEPLOYMENT_ID="${DEPLOYMENT_ID:-$(platform "$CUBE_API_URL/api/v1/deployments" | field 'd["items"][0]["id"]')}"
+environments="$(platform "$CUBE_API_URL/api/v1/deployments/$DEPLOYMENT_ID/environments")"
+environment_id="$(echo "$environments" | field '[e for e in d["items"] if e["type"]=="production"][0]["id"]')"
+data_url="$(echo "$environments" | field '[c["url"] for e in d["items"] if e["type"]=="production" for c in e["api_credentials"] if c["type"]=="rest"][0]')"
+meta_token="$(platform -X POST -d '{"security_context": {}, "scopes": ["meta-private"]}' \
+  "$CUBE_API_URL/api/v1/deployments/$DEPLOYMENT_ID/environments/$environment_id/tokens-for-meta-sync" \
+  | field 'd.get("data", d)["token"]')"
 
 meta_out="sources/cloud-metadata-api"
 ossie_out="sources/ossie-cloud"
 mkdir -p "$meta_out" "$ossie_out"
 
 # --- Metadata API ---
-meta_auth="Authorization: Bearer $CUBE_META_TOKEN"
-curl --fail --silent --show-error -H "$meta_auth" "$CUBE_DATA_URL/v1/data-sources" \
-  | python3 -m json.tool > "$meta_out/data-sources.json"
-curl --fail --silent --show-error -H "$meta_auth" \
-  "$CUBE_DATA_URL/v1/entities?limit=500&include_private=true" \
-  | python3 -m json.tool > "$meta_out/entities.json"
-curl --fail --silent --show-error -H "$meta_auth" -H 'Content-Type: application/json' \
-  -X POST -d '{"include_private": true}' "$CUBE_DATA_URL/v1/entities/all" \
-  | python3 -m json.tool > "$meta_out/entities-all.json"
+# $data_url ends with /cubejs-api/v1.
+metadata() {
+  local file="$1" code
+  shift
+  code=$(curl --silent --show-error -o "$meta_out/$file.raw" -w '%{http_code}' \
+    -H "Authorization: Bearer $meta_token" -H 'Content-Type: application/json' "$@")
+  python3 -m json.tool "$meta_out/$file.raw" > "$meta_out/$file" 2>/dev/null || cp "$meta_out/$file.raw" "$meta_out/$file"
+  rm "$meta_out/$file.raw"
+  echo "HTTP $code $meta_out/$file"
+}
+metadata data-sources.json "$data_url/data-sources"
+# A cloud project identifier must not be in this repository.
+python3 - "$meta_out/data-sources.json" <<'PY'
+import json, sys
+path = sys.argv[1]
+document = json.load(open(path))
+for source in document["data"]["data_sources"]:
+    if "project_id" in source.get("properties", {}):
+        source["properties"]["project_id"] = "<redacted>"
+json.dump(document, open(path, "w"), indent=4)
+PY
+metadata entities.json "$data_url/entities?limit=500&include_private=true"
+metadata entities-all.json -X POST -d '{"include_private": true}' "$data_url/entities/all"
+metadata entities-all-public.json -X POST -d '{}' "$data_url/entities/all"
+metadata model-export.json -X POST -d '{}' "$data_url/model-export"
+# The REST API of Cube Core, on the same deployment, with the same token.
+metadata meta.json "$data_url/meta"
+metadata meta-extended.json "$data_url/meta?extended"
 
 # --- Ossie export ---
 api="$CUBE_API_URL/api/v1/deployments/$DEPLOYMENT_ID/ossie-conversions"
-auth="Authorization: Bearer $CUBE_API_TOKEN"
 
 export_ossie() {
   local variant="$1" body="$2" code id status

@@ -1,0 +1,109 @@
+{
+    "data": [
+        {
+            "type": "cube",
+            "name": "bq_events",
+            "public": true
+        },
+        {
+            "type": "cube",
+            "name": "calendar",
+            "public": true
+        },
+        {
+            "type": "cube",
+            "name": "ch_order_item_facts",
+            "public": true
+        },
+        {
+            "type": "cube",
+            "name": "customers",
+            "public": true
+        },
+        {
+            "type": "cube",
+            "name": "events",
+            "public": true
+        },
+        {
+            "type": "cube",
+            "name": "order_items",
+            "public": true
+        },
+        {
+            "type": "cube",
+            "name": "orders",
+            "public": true
+        },
+        {
+            "type": "cube",
+            "name": "pg_customers",
+            "public": true
+        },
+        {
+            "type": "cube",
+            "name": "pg_order_items",
+            "public": true
+        },
+        {
+            "type": "cube",
+            "name": "pg_orders",
+            "public": true
+        },
+        {
+            "type": "cube",
+            "name": "pg_products",
+            "public": true
+        },
+        {
+            "type": "cube",
+            "name": "product_snapshots",
+            "public": false
+        },
+        {
+            "type": "cube",
+            "name": "products",
+            "public": true
+        },
+        {
+            "type": "cube",
+            "name": "products_snapshot_extended",
+            "public": true
+        },
+        {
+            "type": "view",
+            "name": "customer_360",
+            "public": true
+        },
+        {
+            "type": "view",
+            "name": "events_internal",
+            "public": false
+        },
+        {
+            "type": "view",
+            "name": "order_items_detail",
+            "public": true
+        },
+        {
+            "type": "view",
+            "name": "orders_overview",
+            "public": true
+        },
+        {
+            "type": "view",
+            "name": "orders_overview_finance",
+            "public": true
+        },
+        {
+            "type": "view",
+            "name": "pg_catalog",
+            "public": true
+        }
+    ],
+    "pagination": {
+        "total": 20,
+        "offset": 0,
+        "limit": 500
+    }
+}

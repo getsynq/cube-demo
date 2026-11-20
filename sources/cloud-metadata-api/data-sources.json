@@ -1,0 +1,18 @@
+{
+    "data": {
+        "data_sources": [
+            {
+                "name": "default",
+                "type": "snowflake",
+                "database": "DWH_TESTING"
+            },
+            {
+                "name": "bigquery",
+                "type": "bigquery",
+                "properties": {
+                    "project_id": "<redacted>"
+                }
+            }
+        ]
+    }
+}
