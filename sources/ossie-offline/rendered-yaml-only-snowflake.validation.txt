@@ -1,0 +1,9 @@
+
+  DOCUMENT                                                         VALID    ISSUES                                                                                                                                                                  
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  sources/ossie-offline/rendered-yaml-only-snowflake.ossie.yaml    false    ["error [schema] validating https://github.com/apache/ossie/core-spec/ossie-schema.json: validating /properties/version: const: 0.3.0.dev0 does not equal 0.2.0.dev0"]  
+
+  ✘ Execution failed.
+
+  1 of 1 documents are invalid (--columns document,issues shows why)
+

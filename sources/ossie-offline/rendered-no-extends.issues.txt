@@ -1,0 +1,1 @@
+Error: join 'pg_order_items' -> 'pg_products': 'pg_products' is not a cube in this model

@@ -101,8 +101,75 @@ The responses are in `sources/rest-meta/`.
 | `FILTER_PARAMS`, `FILTER_GROUP` | `events` | absent | The SQL of the cube, with the calls as text |
 | Access policy | `orders`, `events`, `orders_overview` | absent | absent |
 
-The other sources are not in the matrix yet: the Cube Cloud Metadata API, the Cube Cloud Ossie export
-and the offline Ossie converter. `make cloud` and `make ossie-offline` collect them.
+The Cube Cloud Metadata API and the Cube Cloud Ossie export are not in this document yet. `make cloud` collects them.
+
+## Offline Ossie converter
+
+`make ossie-offline` runs the Cube converter of [apache/ossie-converters](https://github.com/apache/ossie-converters) at a pinned commit.
+The results are in `sources/ossie-offline/`: `<variant>.ossie.yaml` is the document and `<variant>.issues.txt` is the report of the converter.
+
+The converter does not convert this model as it is. Each row removes the cause of the failure in the row before.
+
+| Variant | Input | Result |
+|---|---|---|
+| `full-model` | `model/` | Failure: a cube uses `extends` |
+| `no-extends` | `model/` without the `extends_*` files | Failure. The converter skips each file with Jinja. A cube in plain YAML joins `orders`, and `orders` is in a skipped file. |
+| `rendered-no-extends` | The output of `scripts/render_jinja.py`, without the `extends_*` files | Failure. The converter skips the JavaScript model, and a YAML cube joins the JavaScript cube. |
+| `rendered-yaml-only` | The same, without the cubes that join the JavaScript cube | A document with 10 datasets, 60 metrics, 5 relationships and 33 issues |
+| `rendered-yaml-only-snowflake` | The same, with `--source-dialect SNOWFLAKE` | The same document. Each expression has the `SNOWFLAKE` dialect label. |
+| `rendered-view-<view>` | One view, with `--view <view> --project` | Failure for each of the three views: a segment, a hierarchy or a `sub_query` dimension in the view has no Ossie form |
+
+`scripts/render_jinja.py` renders the templates with the minijinja package and `model/globals.py`, with an empty security context.
+This is an approximation of the Cube Cloud export, which renders the templates in the deployment.
+
+If a file in `model/` is not UTF-8 text, for example a `__pycache__` file, the converter stops with a Python error.
+
+### What the document holds
+
+"Extension" means the `custom_extensions` entry with the vendor name `CUBE`. Its `data` is a JSON string.
+A consumer that does not read this string sees only the Ossie properties.
+
+| Feature | Ossie property | Extension |
+|---|---|---|
+| Cube on `sql_table` | `dataset.source` is the table name | - |
+| Cube on a `sql` query | `dataset.source` is the SQL text | - |
+| `data_source` | absent | `cube_extras.data_source` |
+| Jinja, Python globals, `COMPILE_CONTEXT` | The converter does not render them. The file is skipped. | - |
+| Model in JavaScript | The file is skipped | - |
+| `extends` | The conversion fails | - |
+| Cube `title`, `meta`, `public` | `description` only | `cube_extras` |
+| Dimension | `field` with `expression`, `datatype` and `description`. The `title` is the `label`. | `format`, `meta`, `public` |
+| `primary_key` | `dataset.primary_key`, with the member name | `computed_primary_key` |
+| Time dimension | `dimension.is_time: true` | `granularities` |
+| Dimension `case` with labels | One `CASE` expression | The `case` |
+| Proxy dimension | The expression `customers.region` | The Cube SQL |
+| `geo` dimension | Two fields, `_latitude` and `_longitude` | `geo` |
+| `sub_query` dimension | absent | `extra_dimensions` |
+| `switch` dimension | absent | `extra_dimensions` |
+| Measure `count`, `count_distinct`, `count_distinct_approx`, `sum`, `avg`, `min`, `max` | `metric` with a SQL expression, for example `COUNT(DISTINCT orders.CUSTOMER_ID)` | `format`, `title`, `meta`, `public`, `drill_members` |
+| Measure `number` (calculated) | An expression on the metric names | - |
+| Measure `string`, `time`, `boolean` | The expression, no `datatype` | `type` |
+| Measure `filters` | `CASE WHEN` in the expression. The filter is not a separate property. | - |
+| Measure name | The name. If two cubes have the same measure name, the name is `<cube>__<measure>`. A metric has no dataset property. | The Cube name |
+| `rolling_window`, multi-stage measures, `number_agg`, `rank`, measure `case` | absent | `extra_measures`, with all the properties |
+| Join with two columns | `relationship` with `from_columns` and `to_columns`. The converter adds a field for each column that is not a dimension. | The Cube SQL. `relationship` only for `one_to_many` and `one_to_one`. |
+| Join on an expression | absent | `extra_joins` |
+| The same join declared on the two cubes | Two relationships | - |
+| Calendar cube | A dataset | `calendar: true`, the time shifts and the granularity SQL |
+| Segments, hierarchies | absent | `cube_extras` |
+| Pre-aggregations | absent | `cube_extras.pre_aggregations`, with the index columns, the `build_range` SQL and the `refresh_key` SQL |
+| Access policy | absent | `cube_extras.access_policy`, with the groups, the conditions, the member lists and the row filters |
+| `FILTER_PARAMS`, `FILTER_GROUP` | The text of the calls stays in `dataset.source` | - |
+| Views | absent in a full model conversion | The model extension has each view: `cubes` with `join_path`, `includes`, `excludes`, `prefix` and `alias`, the folders, the view members, `default_filters` and the access policy |
+| File names | absent | `cube_files` and `view_files` in the model extension |
+
+### Validation
+
+`make ossie-validate` validates each document with an Ossie validator that is not in this repository.
+
+- The converter writes `version: 0.3.0.dev0`. A validator with the `0.2.0.dev0` schema rejects the document for the version only.
+- With the version changed to `0.2.0.dev0`, the document is valid and has five warnings.
+- Each warning is for a relationship: `to_columns` has the column name (`ID`) and `primary_key` has the member name (`id`), so the two names do not match.
 
 ## Notes on Cube v1.8.30
 

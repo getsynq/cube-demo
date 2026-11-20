@@ -37,7 +37,20 @@ mkdir "$work/model"
 (cd model && tar cf - --exclude 'extends_*' --exclude '__pycache__' .) | (cd "$work/model" && tar xf -)
 convert no-extends -i "$work/model"
 
-# 3. One document for each view: only the public members, with the names of the view.
+# 3. The model after Jinja is rendered, without the `extends_*` files.
+# The offline converter does not render Jinja, so scripts/render_jinja.py does it first.
+# This is an approximation of the Cube Cloud export, which renders Jinja in the deployment.
+uvx --quiet --with minijinja python scripts/render_jinja.py "$work/rendered" > /dev/null
+find "$work/rendered" -name 'extends_*' -delete
+convert rendered-no-extends -i "$work/rendered"
+
+# 4. The same without the cubes that join a JavaScript cube.
+# The converter skips a JavaScript model, so a join to its cube stops the conversion.
+rm "$work/rendered/cubes/python_generated.yml"
+convert rendered-yaml-only -i "$work/rendered"
+convert rendered-yaml-only-snowflake -i "$work/rendered" --source-dialect SNOWFLAKE
+
+# 5. One document for each view: only the public members, with the names of the view.
 for view in orders_overview order_items_detail customer_360; do
-  convert "view-$view" -i "$work/model" --view "$view" --project
+  convert "rendered-view-$view" -i "$work/rendered" --view "$view" --project
 done

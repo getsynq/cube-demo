@@ -26,6 +26,7 @@ A public commit is permanent. A force push does not remove it from public archiv
 | `cube.py` | The Python configuration of Cube |
 | `scripts/make_env.py` | Writes `.env` and `.secrets/` from the private test warehouse configuration |
 | `scripts/smoke.py` | Runs the queries in `tests/queries.json` against the local Cube |
+| `scripts/render_jinja.py` | Renders the Jinja templates to plain YAML for the offline Ossie converter |
 | `scripts/collect_*.sh` | Save what each metadata source returns into `sources/` |
 | `sources/` | The saved response of each metadata source, one directory for each source |
 | `docker-compose.yml` | Cube Core in development mode |
@@ -61,6 +62,7 @@ The tables are test fixtures that a seed creates. This repository does not own t
 - Put a shared macro in `model/macros/` and import it. Do not copy a macro into a cube file.
 - Put a short comment at the top of each model file that names the features that the file shows.
 - A file that uses `extends` stops the Ossie export of the full model. Keep each `extends` example in a file with the `extends_` prefix, so a script can exclude it.
+- Do not keep a file that is not UTF-8 text in `model/`. The offline Ossie converter stops on such a file. A Python script that imports `model/globals.py` must set `sys.dont_write_bytecode`.
 - In a `sql` property, refer to a column as `{CUBE}.COLUMN` and to a member as `{member}`. The converters can then qualify the names.
 - Use upper case for Snowflake identifiers.
 
@@ -71,6 +73,7 @@ The tables are test fixtures that a seed creates. This repository does not own t
 3. Run `make smoke`. To run a part of the queries, run `scripts/smoke.py <text in the query name>`.
 4. If a query fails, read the generated SQL in `make logs`.
 5. Run `make meta` and commit the changed files in `sources/rest-meta/`.
+6. Run `make ossie-offline` and commit the changed files in `sources/ossie-offline/`. Update the tables in `README.md` if a result changes.
 
 A model that compiles can still generate SQL that the warehouse rejects. Do not report a feature as done before its query returns rows.
 
