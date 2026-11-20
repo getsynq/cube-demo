@@ -1,0 +1,14 @@
+# Plain YAML, no Jinja. Shows `extends`: the child cube gets the members and joins of
+# `products`, reads a different table and adds one measure.
+# The Ossie export stops with an error when the model has a cube with `extends`.
+cubes:
+  - name: products_snapshot_extended
+    extends: products
+    sql_table: DWH_TESTING.SCHEMA_A.PRODUCTS_CLONE
+    title: Products (snapshot)
+    description: The product cube on the table clone
+
+    measures:
+      - name: total_weight
+        sql: WEIGHT
+        type: sum
