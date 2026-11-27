@@ -844,6 +844,22 @@ datasets:
   custom_extensions:
   - vendor_name: CUBE
     data: '{"_v": 1, "computed_primary_key": ["id"], "cube_extras": {"public": false}}'
+- name: scorecard_base
+  source: DWH_TESTING.RECON_DEMO.ORDERS
+  description: The score of each order, behind the scorecard
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ID
+    datatype: Decimal
+    dimension: {}
+  primary_key:
+  - id
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "computed_primary_key": ["id"], "cube_extras": {"public": false}}'
 metrics:
 - name: customers__count
   expression:
@@ -1337,6 +1353,14 @@ metrics:
     dialects:
     - dialect: ANSI_SQL
       expression: SUM(product_snapshots.QUANTITY)
+- name: score
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: AVG(scorecard_base.AMOUNT)
+  custom_extensions:
+  - vendor_name: CUBE
+    data: '{"_v": 1, "title": "Score"}'
 custom_extensions:
 - vendor_name: CUBE
   data: '{"_v": 1, "views": {"customer_360": {"name": "customer_360", "title": "Customer
@@ -1388,4 +1412,5 @@ custom_extensions:
     "customers": "cubes/customers.yml", "events": "cubes/events.yml", "order_items":
     "cubes/order_items.yml", "orders": "cubes/orders.yml", "pg_orders": "cubes/other_sources.yml",
     "ch_order_item_facts": "cubes/other_sources.yml", "bq_events": "cubes/other_sources.yml",
-    "products": "cubes/products.yml", "product_snapshots": "cubes/products.yml"}}'
+    "products": "cubes/products.yml", "product_snapshots": "cubes/products.yml", "scorecard_base":
+    "cubes/scorecard_base.yml"}}'

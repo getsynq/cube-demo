@@ -518,5 +518,13 @@
         "scorecard.revenue"
       ]
     }
+  },
+  {
+    "name": "scorecard base private cube",
+    "query": {
+      "measures": [
+        "scorecard_base.score"
+      ]
+    }
   }
 ]

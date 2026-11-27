@@ -1987,6 +1987,61 @@
             "preAggregations": []
         },
         {
+            "name": "scorecard_base",
+            "type": "cube",
+            "title": "Scorecard Base",
+            "isVisible": false,
+            "public": false,
+            "description": "The score of each order, behind the scorecard",
+            "measures": [
+                {
+                    "name": "scorecard_base.score",
+                    "title": "Scorecard Base Score",
+                    "shortTitle": "Score",
+                    "formatDescription": {
+                        "name": "number",
+                        "specifier": ",.2~f"
+                    },
+                    "cumulativeTotal": false,
+                    "cumulative": false,
+                    "type": "number",
+                    "aggType": "avg",
+                    "drillMembers": [],
+                    "drillMembersGrouped": {
+                        "measures": [],
+                        "dimensions": []
+                    },
+                    "isVisible": false,
+                    "public": false,
+                    "sql": "`${CUBE}.AMOUNT`"
+                }
+            ],
+            "dimensions": [
+                {
+                    "name": "scorecard_base.id",
+                    "title": "Scorecard Base ID",
+                    "type": "number",
+                    "shortTitle": "ID",
+                    "suggestFilterValues": true,
+                    "formatDescription": {
+                        "name": "number",
+                        "specifier": ",.2~f"
+                    },
+                    "isVisible": false,
+                    "public": false,
+                    "primaryKey": true,
+                    "sql": "`ID`"
+                }
+            ],
+            "segments": [],
+            "hierarchies": [],
+            "folders": [],
+            "nestedFolders": [],
+            "fileName": "cubes/scorecard_base.yml",
+            "joins": [],
+            "preAggregations": []
+        },
+        {
             "name": "customer_360",
             "type": "view",
             "title": "Customer 360",
