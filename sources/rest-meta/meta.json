@@ -2312,6 +2312,110 @@
             "nestedFolders": []
         },
         {
+            "name": "scorecard",
+            "type": "view",
+            "title": "Scorecard",
+            "isVisible": true,
+            "public": true,
+            "description": "Revenue and order count for a scorecard",
+            "meta": {
+                "owner": "sales-analytics"
+            },
+            "measures": [
+                {
+                    "name": "scorecard.count",
+                    "title": "Scorecard Count",
+                    "shortTitle": "Count",
+                    "formatDescription": {
+                        "name": "number",
+                        "specifier": ",.2~f"
+                    },
+                    "cumulativeTotal": false,
+                    "cumulative": false,
+                    "type": "number",
+                    "aggType": "count",
+                    "drillMembers": [
+                        "scorecard.ordered_at"
+                    ],
+                    "drillMembersGrouped": {
+                        "measures": [],
+                        "dimensions": [
+                            "scorecard.ordered_at"
+                        ]
+                    },
+                    "aliasMember": "orders.count",
+                    "isVisible": true,
+                    "public": true
+                },
+                {
+                    "name": "scorecard.revenue",
+                    "title": "Scorecard Revenue",
+                    "description": "Sum of the order amounts",
+                    "shortTitle": "Revenue",
+                    "format": "currency",
+                    "formatDescription": {
+                        "name": "currency",
+                        "specifier": "$,.2~f"
+                    },
+                    "cumulativeTotal": false,
+                    "cumulative": false,
+                    "type": "number",
+                    "aggType": "sum",
+                    "drillMembers": [],
+                    "drillMembersGrouped": {
+                        "measures": [],
+                        "dimensions": []
+                    },
+                    "aliasMember": "orders.revenue",
+                    "isVisible": true,
+                    "public": true
+                }
+            ],
+            "dimensions": [
+                {
+                    "name": "scorecard.ordered_at",
+                    "title": "Scorecard Ordered at",
+                    "type": "time",
+                    "description": "Time when the customer made the order",
+                    "shortTitle": "Ordered at",
+                    "suggestFilterValues": true,
+                    "isVisible": true,
+                    "public": true,
+                    "primaryKey": false,
+                    "aliasMember": "orders.ordered_at",
+                    "granularities": [
+                        {
+                            "name": "half_hour",
+                            "title": "Half Hour",
+                            "interval": "30 minutes"
+                        },
+                        {
+                            "name": "week_starting_on_sunday",
+                            "title": "Week (Sunday start)",
+                            "interval": "1 week",
+                            "offset": "-1 day"
+                        },
+                        {
+                            "name": "fiscal_year",
+                            "title": "Fiscal year",
+                            "interval": "1 year",
+                            "origin": "2026-02-01"
+                        },
+                        {
+                            "name": "fiscal_quarter",
+                            "title": "Fiscal quarter",
+                            "interval": "3 months",
+                            "origin": "2026-02-01"
+                        }
+                    ]
+                }
+            ],
+            "segments": [],
+            "hierarchies": [],
+            "folders": [],
+            "nestedFolders": []
+        },
+        {
             "name": "calendar",
             "type": "cube",
             "title": "Fiscal calendar",

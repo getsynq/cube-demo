@@ -270,6 +270,16 @@ cubes:
               sql: "{CUBE.revenue_thousands}"
           else:
             sql: "{CUBE.revenue}"
+{% if environment == 'scorecard' %}
+      # This member exists only in the scorecard environment. Its SQL comes from
+      # the security context, as a scorecard of one tenant does.
+      - name: scorecard_revenue
+        sql: "CASE WHEN {CUBE}.STATUS IN ('shipped', 'delivered') THEN {CUBE}.AMOUNT END"
+        type: sum
+        format: currency
+        title: Scorecard revenue
+        description: Revenue of the orders that count for the scorecard
+{% endif %}
 {% if environment != 'production' %}
       # This member exists only outside the production environment.
       - name: debug_row_count
