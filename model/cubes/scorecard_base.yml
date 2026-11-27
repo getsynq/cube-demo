@@ -1,0 +1,27 @@
+{#- YAML with Jinja. Shows: COMPILE_CONTEXT in a private cube (public: false). The
+    scorecard environment computes the score in another way, so the cube differs for each
+    security context, and only the Cube Cloud model export shows it. -#}
+{%- set security_context = COMPILE_CONTEXT.securityContext | default({}) -%}
+{%- set environment = security_context.environment | default('default') -%}
+cubes:
+  - name: scorecard_base
+    sql_table: {{ fq_table('RECON_DEMO', 'ORDERS') | safe }}
+    public: false
+    description: The score of each order, behind the scorecard
+
+    dimensions:
+      - name: id
+        sql: ID
+        type: number
+        primary_key: true
+
+    measures:
+      - name: score
+        type: avg
+{%- if environment == 'scorecard' %}
+        sql: "CASE WHEN {CUBE}.STATUS IN ('shipped', 'delivered') THEN {CUBE}.AMOUNT END"
+        title: Score of the tenant
+{%- else %}
+        sql: "{CUBE}.AMOUNT"
+        title: Score
+{%- endif %}

@@ -40,6 +40,7 @@ The warehouses are private test fixtures. You need access to their configuration
 | `model/cubes/other_sources.yml` | YAML | PostgreSQL, ClickHouse, BigQuery | One cube for each other data source |
 | `model/cubes/pg_products.js` | JavaScript | PostgreSQL | A cube and a view in JavaScript |
 | `model/cubes/python_generated.yml` | YAML with Jinja | PostgreSQL | Cubes that a Python function defines |
+| `model/cubes/scorecard_base.yml` | YAML with Jinja | Snowflake | `COMPILE_CONTEXT` in a private cube: the `scorecard` environment computes the score in another way |
 | `model/views/orders_overview.yml` | YAML | | Includes, excludes, prefix, alias, folders, access policy |
 | `model/views/order_items_detail.yml` | YAML | | A measure and a dimension of the view, `default_filters` |
 | `model/views/customer_360.yml` | YAML with Jinja | | Includes from a loop, a hidden view |
@@ -66,7 +67,7 @@ The responses are in `sources/rest-meta/`.
 | Jinja: macros, `set`, `if`, `for` | `orders`, `events` | The rendered members | The rendered SQL |
 | Python globals | `orders` (`order_statuses`, `fq_table`) | The rendered members | The rendered SQL |
 | Cubes from a Python function | `pg_customers`, `pg_order_items` | The rendered cubes | The rendered SQL |
-| `COMPILE_CONTEXT` | `orders.debug_row_count`, `orders.scorecard_revenue`, the view `scorecard` | One variant, for the context of the request | One variant |
+| `COMPILE_CONTEXT` | `orders.debug_row_count`, `orders.scorecard_revenue`, the view `scorecard`, the private cube `scorecard_base` | One variant, for the context of the request | One variant |
 | Model in JavaScript | `pg_products`, `pg_catalog` | name | The SQL and the file name |
 | Measure `count`, `count_distinct`, `count_distinct_approx`, `sum`, `avg`, `min`, `max` | `orders`, `order_items` | name and `aggType` | The SQL of the measure |
 | Measure `number` (calculated) | `orders.average_order_value` | name and `aggType` | The SQL with the member references |
