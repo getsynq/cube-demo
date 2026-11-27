@@ -1378,11 +1378,14 @@ custom_extensions:
     "cumulative_revenue"]}]}], "access_policy": [{"group": "default", "member_level":
     {"includes": "*"}, "row_level": {"allow_all": true}}, {"group": "analyst", "member_level":
     {"excludes": ["customers_full_name"]}, "row_level": {"filters": [{"member": "customers_region",
-    "operator": "equals", "values": ["{ securityContext.region }"]}]}}]}}, "view_files":
-    {"customer_360": "views/customer_360.yml", "events_internal": "views/customer_360.yml",
-    "order_items_detail": "views/order_items_detail.yml", "orders_overview": "views/orders_overview.yml"},
-    "cube_files": {"calendar": "cubes/calendar.yml", "customers": "cubes/customers.yml",
-    "events": "cubes/events.yml", "order_items": "cubes/order_items.yml", "orders":
-    "cubes/orders.yml", "pg_orders": "cubes/other_sources.yml", "ch_order_item_facts":
-    "cubes/other_sources.yml", "bq_events": "cubes/other_sources.yml", "products":
-    "cubes/products.yml", "product_snapshots": "cubes/products.yml"}}'
+    "operator": "equals", "values": ["{ securityContext.region }"]}]}}]}, "scorecard":
+    {"name": "scorecard", "title": "Scorecard", "description": "Revenue and order
+    count for a scorecard", "meta": {"owner": "sales-analytics"}, "cubes": [{"join_path":
+    "orders", "includes": ["count", "revenue", "ordered_at"]}]}}, "view_files": {"customer_360":
+    "views/customer_360.yml", "events_internal": "views/customer_360.yml", "order_items_detail":
+    "views/order_items_detail.yml", "orders_overview": "views/orders_overview.yml",
+    "scorecard": "views/scorecard.yml"}, "cube_files": {"calendar": "cubes/calendar.yml",
+    "customers": "cubes/customers.yml", "events": "cubes/events.yml", "order_items":
+    "cubes/order_items.yml", "orders": "cubes/orders.yml", "pg_orders": "cubes/other_sources.yml",
+    "ch_order_item_facts": "cubes/other_sources.yml", "bq_events": "cubes/other_sources.yml",
+    "products": "cubes/products.yml", "product_snapshots": "cubes/products.yml"}}'

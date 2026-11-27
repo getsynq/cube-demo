@@ -1,5 +1,5 @@
 33 conversion issue(s):
-  [PARKED_IN_META] model: 4 views found and none chosen with --view; view metadata is preserved in custom_extensions only
+  [PARKED_IN_META] model: 5 views found and none chosen with --view; view metadata is preserved in custom_extensions only
   [PARKED_IN_META] join 'orders' -> 'calendar': join clause '{CUBE.ordered_date} = {calendar.date}' does not resolve to two physical columns -- Ossie relationship columns are columns, so a member reading an expression has none to name; preserved in custom_extensions only
   [PARKED_IN_META] join 'products' -> 'product_snapshots': one_to_one has no Ossie orientation; the declared orientation is kept and the type preserved
   [FANOUT_UNSAFE_METRIC] orders.revenue: a non-idempotent aggregate reads dataset 'orders', which relationship 'order_items_to_orders' fans out; Cube deduplicates on the primary key at query time but a static Ossie expression cannot, so a consumer joining through that join may over-count

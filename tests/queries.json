@@ -1,513 +1,522 @@
 [
- {
-  "name": "orders basic measures",
-  "query": {
-   "measures": [
-    "orders.count",
-    "orders.customer_count",
-    "orders.revenue",
-    "orders.avg_amount",
-    "orders.min_amount",
-    "orders.max_amount",
-    "orders.average_order_value"
-   ],
-   "dimensions": [
-    "orders.status"
-   ]
-  }
- },
- {
-  "name": "orders string time boolean measures",
-  "query": {
-   "measures": [
-    "orders.first_order_at",
-    "orders.has_returns",
-    "orders.statuses_seen"
-   ],
-   "dimensions": [
-    "orders.status_group"
-   ]
-  }
- },
- {
-  "name": "orders number_agg",
-  "query": {
-   "measures": [
-    "orders.median_customer_revenue"
-   ],
-   "dimensions": [
-    "orders.status"
-   ]
-  }
- },
- {
-  "name": "orders filtered measures from macro",
-  "query": {
-   "measures": [
-    "orders.new_count",
-    "orders.returned_revenue",
-    "orders.completed_count",
-    "orders.high_value_completed_revenue",
-    "orders.return_rate"
-   ]
-  }
- },
- {
-  "name": "orders custom granularity",
-  "query": {
-   "measures": [
-    "orders.count"
-   ],
-   "timeDimensions": [
-    {
-     "dimension": "orders.ordered_at",
-     "granularity": "fiscal_quarter"
+  {
+    "name": "orders basic measures",
+    "query": {
+      "measures": [
+        "orders.count",
+        "orders.customer_count",
+        "orders.revenue",
+        "orders.avg_amount",
+        "orders.min_amount",
+        "orders.max_amount",
+        "orders.average_order_value"
+      ],
+      "dimensions": [
+        "orders.status"
+      ]
     }
-   ]
-  }
- },
- {
-  "name": "orders boolean dimension and segment",
-  "query": {
-   "measures": [
-    "orders.count"
-   ],
-   "dimensions": [
-    "orders.is_high_value"
-   ],
-   "segments": [
-    "orders.completed"
-   ]
-  }
- },
- {
-  "name": "orders join customers",
-  "query": {
-   "measures": [
-    "orders.revenue"
-   ],
-   "dimensions": [
-    "customers.region",
-    "orders.customer_region"
-   ]
-  }
- },
- {
-  "name": "orders rolling window",
-  "query": {
-   "measures": [
-    "orders.revenue_trailing_7_days",
-    "orders.cumulative_revenue",
-    "orders.revenue_year_to_date"
-   ],
-   "timeDimensions": [
-    {
-     "dimension": "orders.ordered_at",
-     "granularity": "month",
-     "dateRange": [
-      "2026-01-01",
-      "2026-06-30"
-     ]
+  },
+  {
+    "name": "orders string time boolean measures",
+    "query": {
+      "measures": [
+        "orders.first_order_at",
+        "orders.has_returns",
+        "orders.statuses_seen"
+      ],
+      "dimensions": [
+        "orders.status_group"
+      ]
     }
-   ]
-  }
- },
- {
-  "name": "orders time_shift",
-  "query": {
-   "measures": [
-    "orders.revenue",
-    "orders.revenue_prior_month",
-    "orders.revenue_month_over_month"
-   ],
-   "timeDimensions": [
-    {
-     "dimension": "orders.ordered_at",
-     "granularity": "month",
-     "dateRange": [
-      "2026-01-01",
-      "2026-06-30"
-     ]
+  },
+  {
+    "name": "orders number_agg",
+    "query": {
+      "measures": [
+        "orders.median_customer_revenue"
+      ],
+      "dimensions": [
+        "orders.status"
+      ]
     }
-   ]
-  }
- },
- {
-  "name": "orders reduce_by group_by rank",
-  "query": {
-   "measures": [
-    "orders.revenue",
-    "orders.revenue_all_statuses",
-    "orders.revenue_share_of_statuses",
-    "orders.revenue_of_status_group",
-    "orders.status_revenue_rank"
-   ],
-   "dimensions": [
-    "orders.status",
-    "orders.status_group"
-   ]
-  }
- },
- {
-  "name": "orders switch case measure",
-  "query": {
-   "measures": [
-    "orders.revenue_in_unit"
-   ],
-   "dimensions": [
-    "orders.amount_unit"
-   ]
-  }
- },
- {
-  "name": "orders calendar named time_shift",
-  "query": {
-   "measures": [
-    "orders.revenue",
-    "orders.revenue_prior_fiscal_year"
-   ],
-   "timeDimensions": [
-    {
-     "dimension": "calendar.date",
-     "granularity": "year"
+  },
+  {
+    "name": "orders filtered measures from macro",
+    "query": {
+      "measures": [
+        "orders.new_count",
+        "orders.returned_revenue",
+        "orders.completed_count",
+        "orders.high_value_completed_revenue",
+        "orders.return_rate"
+      ]
     }
-   ]
-  }
- },
- {
-  "name": "calendar granularity override",
-  "query": {
-   "measures": [
-    "orders.count"
-   ],
-   "dimensions": [
-    "calendar.fiscal_year"
-   ],
-   "timeDimensions": [
-    {
-     "dimension": "calendar.date",
-     "granularity": "quarter"
+  },
+  {
+    "name": "orders custom granularity",
+    "query": {
+      "measures": [
+        "orders.count"
+      ],
+      "timeDimensions": [
+        {
+          "dimension": "orders.ordered_at",
+          "granularity": "fiscal_quarter"
+        }
+      ]
     }
-   ]
-  }
- },
- {
-  "name": "customers geo and sub_query",
-  "query": {
-   "measures": [
-    "customers.count"
-   ],
-   "dimensions": [
-    "customers.region",
-    "customers.region_location",
-    "customers.lifetime_tier",
-    "customers.lifetime_revenue"
-   ]
-  }
- },
- {
-  "name": "customers segment",
-  "query": {
-   "measures": [
-    "customers.count",
-    "customers.region_count"
-   ],
-   "segments": [
-    "customers.emea"
-   ]
-  }
- },
- {
-  "name": "products measures",
-  "query": {
-   "measures": [
-    "products.count",
-    "products.active_count",
-    "products.avg_price",
-    "products.stock_value",
-    "products.active_ratio"
-   ],
-   "dimensions": [
-    "products.category",
-    "products.price_band"
-   ]
-  }
- },
- {
-  "name": "products one_to_one hidden cube",
-  "query": {
-   "measures": [
-    "product_snapshots.snapshot_stock_quantity"
-   ],
-   "dimensions": [
-    "products.name",
-    "product_snapshots.snapshot_price"
-   ]
-  }
- },
- {
-  "name": "order_items joins",
-  "query": {
-   "measures": [
-    "order_items.count",
-    "order_items.gross_amount",
-    "order_items.net_amount",
-    "order_items.products_sold",
-    "order_items.products_sold_approx"
-   ],
-   "dimensions": [
-    "products.category",
-    "orders.status"
-   ]
-  }
- },
- {
-  "name": "events FILTER_PARAMS and FILTER_GROUP",
-  "query": {
-   "measures": [
-    "events.count",
-    "events.signup_count",
-    "events.purchase_amount",
-    "events.signup_to_purchase_rate"
-   ],
-   "dimensions": [
-    "events.name",
-    "events.plan"
-   ],
-   "filters": [
-    {
-     "or": [
-      {
-       "member": "events.name",
-       "operator": "equals",
-       "values": [
-        "signup",
-        "purchase"
-       ]
-      },
-      {
-       "member": "events.event_at",
-       "operator": "afterDate",
-       "values": [
-        "2026-01-01"
-       ]
-      }
-     ]
+  },
+  {
+    "name": "orders boolean dimension and segment",
+    "query": {
+      "measures": [
+        "orders.count"
+      ],
+      "dimensions": [
+        "orders.is_high_value"
+      ],
+      "segments": [
+        "orders.completed"
+      ]
     }
-   ]
-  }
- },
- {
-  "name": "events custom granularity",
-  "query": {
-   "measures": [
-    "events.count"
-   ],
-   "timeDimensions": [
-    {
-     "dimension": "events.event_at",
-     "granularity": "week_starting_on_sunday"
+  },
+  {
+    "name": "orders join customers",
+    "query": {
+      "measures": [
+        "orders.revenue"
+      ],
+      "dimensions": [
+        "customers.region",
+        "orders.customer_region"
+      ]
     }
-   ],
-   "segments": [
-    "events.purchases"
-   ]
-  }
- },
- {
-  "name": "extends cube",
-  "query": {
-   "measures": [
-    "products_snapshot_extended.count",
-    "products_snapshot_extended.total_weight"
-   ],
-   "dimensions": [
-    "products_snapshot_extended.category"
-   ]
-  }
- },
- {
-  "name": "postgres javascript cube",
-  "query": {
-   "measures": [
-    "pg_products.count",
-    "pg_products.budget_count",
-    "pg_products.premium_count",
-    "pg_products.avg_price"
-   ],
-   "dimensions": [
-    "pg_products.category"
-   ]
-  }
- },
- {
-  "name": "postgres python generated cubes",
-  "query": {
-   "measures": [
-    "pg_order_items.count",
-    "pg_order_items.total_quantity"
-   ],
-   "dimensions": [
-    "pg_products.category"
-   ]
-  }
- },
- {
-  "name": "postgres python generated customers",
-  "query": {
-   "measures": [
-    "pg_customers.count"
-   ],
-   "dimensions": [
-    "pg_customers.region"
-   ]
-  }
- },
- {
-  "name": "postgres javascript view",
-  "query": {
-   "measures": [
-    "pg_catalog.count",
-    "pg_catalog.pg_products_avg_price"
-   ],
-   "dimensions": [
-    "pg_catalog.pg_products_category"
-   ]
-  }
- },
- {
-  "name": "postgres orders",
-  "query": {
-   "measures": [
-    "pg_orders.count",
-    "pg_orders.revenue",
-    "pg_orders.p90_amount"
-   ],
-   "dimensions": [
-    "pg_orders.status"
-   ]
-  }
- },
- {
-  "name": "clickhouse cube",
-  "query": {
-   "measures": [
-    "ch_order_item_facts.count",
-    "ch_order_item_facts.line_amount",
-    "ch_order_item_facts.orders",
-    "ch_order_item_facts.orders_approx"
-   ],
-   "dimensions": [
-    "ch_order_item_facts.category"
-   ]
-  }
- },
- {
-  "name": "bigquery cube",
-  "query": {
-   "measures": [
-    "bq_events.count",
-    "bq_events.amount"
-   ],
-   "dimensions": [
-    "bq_events.name"
-   ],
-   "timeDimensions": [
-    {
-     "dimension": "bq_events.event_at",
-     "granularity": "month"
+  },
+  {
+    "name": "orders rolling window",
+    "query": {
+      "measures": [
+        "orders.revenue_trailing_7_days",
+        "orders.cumulative_revenue",
+        "orders.revenue_year_to_date"
+      ],
+      "timeDimensions": [
+        {
+          "dimension": "orders.ordered_at",
+          "granularity": "month",
+          "dateRange": [
+            "2026-01-01",
+            "2026-06-30"
+          ]
+        }
+      ]
     }
-   ]
-  }
- },
- {
-  "name": "view orders_overview",
-  "query": {
-   "measures": [
-    "orders_overview.count",
-    "orders_overview.revenue",
-    "orders_overview.revenue_share_of_statuses"
-   ],
-   "dimensions": [
-    "orders_overview.order_status",
-    "orders_overview.customers_region",
-    "orders_overview.fiscal_fiscal_year"
-   ],
-   "segments": [
-    "orders_overview.completed"
-   ]
-  }
- },
- {
-  "name": "view orders_overview time comparison",
-  "query": {
-   "measures": [
-    "orders_overview.revenue",
-    "orders_overview.revenue_prior_month",
-    "orders_overview.revenue_month_over_month"
-   ],
-   "timeDimensions": [
-    {
-     "dimension": "orders_overview.ordered_at",
-     "granularity": "month",
-     "dateRange": [
-      "2026-01-01",
-      "2026-06-30"
-     ]
+  },
+  {
+    "name": "orders time_shift",
+    "query": {
+      "measures": [
+        "orders.revenue",
+        "orders.revenue_prior_month",
+        "orders.revenue_month_over_month"
+      ],
+      "timeDimensions": [
+        {
+          "dimension": "orders.ordered_at",
+          "granularity": "month",
+          "dateRange": [
+            "2026-01-01",
+            "2026-06-30"
+          ]
+        }
+      ]
     }
-   ]
+  },
+  {
+    "name": "orders reduce_by group_by rank",
+    "query": {
+      "measures": [
+        "orders.revenue",
+        "orders.revenue_all_statuses",
+        "orders.revenue_share_of_statuses",
+        "orders.revenue_of_status_group",
+        "orders.status_revenue_rank"
+      ],
+      "dimensions": [
+        "orders.status",
+        "orders.status_group"
+      ]
+    }
+  },
+  {
+    "name": "orders switch case measure",
+    "query": {
+      "measures": [
+        "orders.revenue_in_unit"
+      ],
+      "dimensions": [
+        "orders.amount_unit"
+      ]
+    }
+  },
+  {
+    "name": "orders calendar named time_shift",
+    "query": {
+      "measures": [
+        "orders.revenue",
+        "orders.revenue_prior_fiscal_year"
+      ],
+      "timeDimensions": [
+        {
+          "dimension": "calendar.date",
+          "granularity": "year"
+        }
+      ]
+    }
+  },
+  {
+    "name": "calendar granularity override",
+    "query": {
+      "measures": [
+        "orders.count"
+      ],
+      "dimensions": [
+        "calendar.fiscal_year"
+      ],
+      "timeDimensions": [
+        {
+          "dimension": "calendar.date",
+          "granularity": "quarter"
+        }
+      ]
+    }
+  },
+  {
+    "name": "customers geo and sub_query",
+    "query": {
+      "measures": [
+        "customers.count"
+      ],
+      "dimensions": [
+        "customers.region",
+        "customers.region_location",
+        "customers.lifetime_tier",
+        "customers.lifetime_revenue"
+      ]
+    }
+  },
+  {
+    "name": "customers segment",
+    "query": {
+      "measures": [
+        "customers.count",
+        "customers.region_count"
+      ],
+      "segments": [
+        "customers.emea"
+      ]
+    }
+  },
+  {
+    "name": "products measures",
+    "query": {
+      "measures": [
+        "products.count",
+        "products.active_count",
+        "products.avg_price",
+        "products.stock_value",
+        "products.active_ratio"
+      ],
+      "dimensions": [
+        "products.category",
+        "products.price_band"
+      ]
+    }
+  },
+  {
+    "name": "products one_to_one hidden cube",
+    "query": {
+      "measures": [
+        "product_snapshots.snapshot_stock_quantity"
+      ],
+      "dimensions": [
+        "products.name",
+        "product_snapshots.snapshot_price"
+      ]
+    }
+  },
+  {
+    "name": "order_items joins",
+    "query": {
+      "measures": [
+        "order_items.count",
+        "order_items.gross_amount",
+        "order_items.net_amount",
+        "order_items.products_sold",
+        "order_items.products_sold_approx"
+      ],
+      "dimensions": [
+        "products.category",
+        "orders.status"
+      ]
+    }
+  },
+  {
+    "name": "events FILTER_PARAMS and FILTER_GROUP",
+    "query": {
+      "measures": [
+        "events.count",
+        "events.signup_count",
+        "events.purchase_amount",
+        "events.signup_to_purchase_rate"
+      ],
+      "dimensions": [
+        "events.name",
+        "events.plan"
+      ],
+      "filters": [
+        {
+          "or": [
+            {
+              "member": "events.name",
+              "operator": "equals",
+              "values": [
+                "signup",
+                "purchase"
+              ]
+            },
+            {
+              "member": "events.event_at",
+              "operator": "afterDate",
+              "values": [
+                "2026-01-01"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "events custom granularity",
+    "query": {
+      "measures": [
+        "events.count"
+      ],
+      "timeDimensions": [
+        {
+          "dimension": "events.event_at",
+          "granularity": "week_starting_on_sunday"
+        }
+      ],
+      "segments": [
+        "events.purchases"
+      ]
+    }
+  },
+  {
+    "name": "extends cube",
+    "query": {
+      "measures": [
+        "products_snapshot_extended.count",
+        "products_snapshot_extended.total_weight"
+      ],
+      "dimensions": [
+        "products_snapshot_extended.category"
+      ]
+    }
+  },
+  {
+    "name": "postgres javascript cube",
+    "query": {
+      "measures": [
+        "pg_products.count",
+        "pg_products.budget_count",
+        "pg_products.premium_count",
+        "pg_products.avg_price"
+      ],
+      "dimensions": [
+        "pg_products.category"
+      ]
+    }
+  },
+  {
+    "name": "postgres python generated cubes",
+    "query": {
+      "measures": [
+        "pg_order_items.count",
+        "pg_order_items.total_quantity"
+      ],
+      "dimensions": [
+        "pg_products.category"
+      ]
+    }
+  },
+  {
+    "name": "postgres python generated customers",
+    "query": {
+      "measures": [
+        "pg_customers.count"
+      ],
+      "dimensions": [
+        "pg_customers.region"
+      ]
+    }
+  },
+  {
+    "name": "postgres javascript view",
+    "query": {
+      "measures": [
+        "pg_catalog.count",
+        "pg_catalog.pg_products_avg_price"
+      ],
+      "dimensions": [
+        "pg_catalog.pg_products_category"
+      ]
+    }
+  },
+  {
+    "name": "postgres orders",
+    "query": {
+      "measures": [
+        "pg_orders.count",
+        "pg_orders.revenue",
+        "pg_orders.p90_amount"
+      ],
+      "dimensions": [
+        "pg_orders.status"
+      ]
+    }
+  },
+  {
+    "name": "clickhouse cube",
+    "query": {
+      "measures": [
+        "ch_order_item_facts.count",
+        "ch_order_item_facts.line_amount",
+        "ch_order_item_facts.orders",
+        "ch_order_item_facts.orders_approx"
+      ],
+      "dimensions": [
+        "ch_order_item_facts.category"
+      ]
+    }
+  },
+  {
+    "name": "bigquery cube",
+    "query": {
+      "measures": [
+        "bq_events.count",
+        "bq_events.amount"
+      ],
+      "dimensions": [
+        "bq_events.name"
+      ],
+      "timeDimensions": [
+        {
+          "dimension": "bq_events.event_at",
+          "granularity": "month"
+        }
+      ]
+    }
+  },
+  {
+    "name": "view orders_overview",
+    "query": {
+      "measures": [
+        "orders_overview.count",
+        "orders_overview.revenue",
+        "orders_overview.revenue_share_of_statuses"
+      ],
+      "dimensions": [
+        "orders_overview.order_status",
+        "orders_overview.customers_region",
+        "orders_overview.fiscal_fiscal_year"
+      ],
+      "segments": [
+        "orders_overview.completed"
+      ]
+    }
+  },
+  {
+    "name": "view orders_overview time comparison",
+    "query": {
+      "measures": [
+        "orders_overview.revenue",
+        "orders_overview.revenue_prior_month",
+        "orders_overview.revenue_month_over_month"
+      ],
+      "timeDimensions": [
+        {
+          "dimension": "orders_overview.ordered_at",
+          "granularity": "month",
+          "dateRange": [
+            "2026-01-01",
+            "2026-06-30"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "view order_items_detail",
+    "query": {
+      "measures": [
+        "order_items_detail.count",
+        "order_items_detail.net_amount",
+        "order_items_detail.discount_share"
+      ],
+      "dimensions": [
+        "order_items_detail.product_label",
+        "order_items_detail.orders_status"
+      ]
+    }
+  },
+  {
+    "name": "view customer_360",
+    "query": {
+      "measures": [
+        "customer_360.orders_count",
+        "customer_360.orders_revenue",
+        "customer_360.orders_returned_count"
+      ],
+      "dimensions": [
+        "customer_360.full_name",
+        "customer_360.lifetime_tier"
+      ]
+    }
+  },
+  {
+    "name": "view extends",
+    "query": {
+      "measures": [
+        "orders_overview_finance.count",
+        "orders_overview_finance.min_amount",
+        "orders_overview_finance.max_amount"
+      ],
+      "dimensions": [
+        "orders_overview_finance.status_group"
+      ]
+    }
+  },
+  {
+    "name": "hidden view",
+    "query": {
+      "measures": [
+        "events_internal.count"
+      ],
+      "dimensions": [
+        "events_internal.device"
+      ]
+    }
+  },
+  {
+    "name": "scorecard view",
+    "query": {
+      "measures": [
+        "scorecard.count",
+        "scorecard.revenue"
+      ]
+    }
   }
- },
- {
-  "name": "view order_items_detail",
-  "query": {
-   "measures": [
-    "order_items_detail.count",
-    "order_items_detail.net_amount",
-    "order_items_detail.discount_share"
-   ],
-   "dimensions": [
-    "order_items_detail.product_label",
-    "order_items_detail.orders_status"
-   ]
-  }
- },
- {
-  "name": "view customer_360",
-  "query": {
-   "measures": [
-    "customer_360.orders_count",
-    "customer_360.orders_revenue",
-    "customer_360.orders_returned_count"
-   ],
-   "dimensions": [
-    "customer_360.full_name",
-    "customer_360.lifetime_tier"
-   ]
-  }
- },
- {
-  "name": "view extends",
-  "query": {
-   "measures": [
-    "orders_overview_finance.count",
-    "orders_overview_finance.min_amount",
-    "orders_overview_finance.max_amount"
-   ],
-   "dimensions": [
-    "orders_overview_finance.status_group"
-   ]
-  }
- },
- {
-  "name": "hidden view",
-  "query": {
-   "measures": [
-    "events_internal.count"
-   ],
-   "dimensions": [
-    "events_internal.device"
-   ]
-  }
- }
 ]

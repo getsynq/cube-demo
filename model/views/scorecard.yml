@@ -1,0 +1,21 @@
+{#- YAML with Jinja. Shows: COMPILE_CONTEXT in a view. The scorecard environment
+    gives the view another title and one more member, so the view differs for
+    each security context. -#}
+{%- set security_context = COMPILE_CONTEXT.securityContext | default({}) -%}
+{%- set environment = security_context.environment | default('default') -%}
+views:
+  - name: scorecard
+    title: {{ 'Scorecard of the tenant' if environment == 'scorecard' else 'Scorecard' }}
+    description: Revenue and order count for a scorecard
+    meta:
+      owner: sales-analytics
+
+    cubes:
+      - join_path: orders
+        includes:
+          - count
+          - revenue
+{%- if environment == 'scorecard' %}
+          - scorecard_revenue
+{%- endif %}
+          - ordered_at

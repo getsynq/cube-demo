@@ -43,6 +43,7 @@ The warehouses are private test fixtures. You need access to their configuration
 | `model/views/orders_overview.yml` | YAML | | Includes, excludes, prefix, alias, folders, access policy |
 | `model/views/order_items_detail.yml` | YAML | | A measure and a dimension of the view, `default_filters` |
 | `model/views/customer_360.yml` | YAML with Jinja | | Includes from a loop, a hidden view |
+| `model/views/scorecard.yml` | YAML with Jinja | | `COMPILE_CONTEXT` in a view: the `scorecard` environment adds a member |
 | `model/views/extends_orders_overview.yml` | YAML | | A view that extends a view |
 | `model/macros/*.jinja` | Jinja | | Shared macros that the Jinja cubes import |
 | `model/globals.py` | Python | | Functions, variables and a filter for the templates |
@@ -65,7 +66,7 @@ The responses are in `sources/rest-meta/`.
 | Jinja: macros, `set`, `if`, `for` | `orders`, `events` | The rendered members | The rendered SQL |
 | Python globals | `orders` (`order_statuses`, `fq_table`) | The rendered members | The rendered SQL |
 | Cubes from a Python function | `pg_customers`, `pg_order_items` | The rendered cubes | The rendered SQL |
-| `COMPILE_CONTEXT` | `orders.debug_row_count` | One variant, for the context of the request | One variant |
+| `COMPILE_CONTEXT` | `orders.debug_row_count`, `orders.scorecard_revenue`, the view `scorecard` | One variant, for the context of the request | One variant |
 | Model in JavaScript | `pg_products`, `pg_catalog` | name | The SQL and the file name |
 | Measure `count`, `count_distinct`, `count_distinct_approx`, `sum`, `avg`, `min`, `max` | `orders`, `order_items` | name and `aggType` | The SQL of the measure |
 | Measure `number` (calculated) | `orders.average_order_value` | name and `aggType` | The SQL with the member references |
